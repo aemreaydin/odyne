@@ -37,4 +37,4 @@
 - [x] 6.1 `openspec validate --all` passes (add-tutor-skill valid)
 - [x] 6.2 End-to-end dry run: lesson-schema change created, 4/4 artifacts tracked, ownership tags parse, and `instructions apply` returns the hard-stop constitution as the CLI's own instruction; deleted after
 - [x] 6.3 Resume drill: files-only read (`curriculum.yaml` → change dir → `tasks.md`) reconstructed position mechanically (active change, checkbox state, first incomplete task)
-- [ ] 6.4 Final commit
+- [x] 6.4 Final commit (`6eff3d1`)
