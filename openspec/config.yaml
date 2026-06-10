@@ -1,20 +1,33 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+# Project context — included whenever AI creates artifacts, in any session.
+context: |
+  odyne — a game engine in Odin (Vulkan now, DX12 later) built BY A LEARNER to
+  learn engine programming. Learner: Senior SWE, C++ daily, new to Odin.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  TUTORED PROJECT — constitution (full version: .claude/skills/tutor/SKILL.md):
+  - The AI tutors: explanations, citations, stubs, failing tests, reviews.
+  - The LEARNER writes all implementations. Never implement learner work.
+  - Lesson tasks carry owner tags [tutor]/[you]. During apply: execute [tutor]
+    tasks, HARD-STOP at the first incomplete [you] task — summarize, hand off,
+    end the turn. Verify [you] outcomes (run `odin test`) before checking off.
+  - Citations: only cite-keys registered in curriculum/BIBLIOGRAPHY.md, with
+    chapter/section ([GEA §6.2]); verify and register new sources before citing.
+  - Explanations are C++ deltas; flag "C++ habit vs DOD approach" moments.
+  - Every lesson: "In the industry" section + a performance measurement task.
+  - Layering law: core → platform → render → game, dependencies point down
+    only; handle-based package boundaries (no vk* types outside the Vulkan
+    package).
+  - One lesson = one OpenSpec change under the `lesson` schema.
+    curriculum/curriculum.yaml is the single source of truth for position;
+    resume from files, never from chat history.
+
+# Per-artifact rules
+rules:
+  lesson:
+    - Cite only registered cite-keys; include "In the industry" and "Performance notes" sections
+    - Never include implementation code for this lesson's exercises
+  tasks:
+    - In lesson-schema changes, every task line carries exactly one owner tag - [tutor] or [you]
+  specs:
+    - Lesson spec deltas describe the ENGINE capability being built (e.g. core-memory), not the lesson itself

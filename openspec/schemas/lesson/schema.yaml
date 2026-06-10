@@ -1,0 +1,107 @@
+name: lesson
+version: 1
+description: Tutored lesson workflow - lesson → design → specs → tasks (learner implements)
+artifacts:
+  - id: lesson
+    generates: lesson.md
+    description: Lesson explanation with citations, industry practice, and exercise spec
+    template: lesson.md
+    instruction: >
+      Write the lesson explanation. You are the TUTOR; the learner implements.
+
+      Constitution (binding):
+
+      - Every factual claim cites a cite-key registered in curriculum/BIBLIOGRAPHY.md,
+      with chapter/section/timestamp where the source has subdivisions (e.g. [GEA §6.2]).
+      If a needed source is unregistered, add a verified entry first, then cite it.
+
+      - Relate new Odin and engine concepts to their closest C++ equivalents
+      (defer vs RAII, parapoly vs templates, context vs singletons/TLS, ZII vs
+      constructors) and add an explicit "C++ habit vs DOD approach" callout where
+      idiomatic C++ instincts would mislead.
+
+      - Include the "In the industry" section: how shipping engines/studios do this,
+      cited via cite-keys.
+
+      - Include "Performance notes": cost model, cache/allocation behavior, and the
+      lesson's measurement task.
+
+      - Orient, don't exhaust: the explanation frames the topic; the reading list's
+      primary sources do the deep teaching.
+
+      - NEVER include implementation code for this lesson's exercises. Illustrative
+      fragments of unrelated code are acceptable.
+
+      Fill in the lesson header: type (concept/kata/build/design/milestone), module,
+      and whether the interface is learner-designed or provided (with rationale).
+    requires: []
+  - id: design
+    generates: design.md
+    description: Learner's interface sketch, tutor critique, and the agreed interface
+    template: design.md
+    instruction: >
+      Interface design dialogue. Default: the LEARNER sketches the interface first;
+      the tutor critiques (trade-offs, naming, layering law, handle-based boundaries,
+      memory ownership) and the agreed interface is recorded last.
+
+      If the lesson header says "interface: provided", the tutor supplies the
+      interface with a rationale for why this lesson skips learner design.
+
+      Tests MUST NOT be written until "Agreed interface" is filled in.
+
+      For concept-type lessons with no exercise interface, write "Not applicable"
+      under Agreed interface and move on.
+    requires:
+      - lesson
+  - id: specs
+    generates: specs/**/*.md
+    description: Delta spec for the engine capability this lesson builds or extends
+    template: spec.md
+    instruction: >
+      Specify the ENGINE capability this lesson builds (e.g. core-memory,
+      platform-input, render-backend) — not the lesson itself. At archive these
+      deltas merge into openspec/specs/ and become the engine's living specification.
+
+      - Use specs/<capability>/spec.md with the engine capability's kebab-case name;
+      check openspec/specs/ for existing capabilities and use MODIFIED with full
+      requirement blocks when changing existing behavior.
+
+      - Each requirement: "### Requirement: <name>" with SHALL/MUST language.
+
+      - Each scenario: "#### Scenario: <name>" (exactly 4 hashtags) with
+      WHEN/THEN bullets. Every requirement has at least one scenario.
+
+      - Requirements describe observable engine behavior; the tutor's tests for this
+      lesson should trace to these scenarios.
+    requires:
+      - lesson
+      - design
+  - id: tasks
+    generates: tasks.md
+    description: Ownership-tagged lesson checklist ([tutor]/[you])
+    template: tasks.md
+    instruction: >
+      Create the lesson checklist from the template. Every task line MUST carry
+      exactly one owner tag: [tutor] (agent work) or [you] (learner work).
+
+      Keep the canonical group order: Orient, Design, Spec, Build, Review, Finalize.
+      Scale groups down for small lessons (a concept lesson may have no Spec/Build
+      groups) but never drop Finalize.
+
+      The hard-stop rule in the template header is binding during apply.
+    requires:
+      - specs
+      - design
+apply:
+  requires:
+    - tasks
+  tracks: tasks.md
+  instruction: |
+    TUTORED LESSON — the division of labor is binding.
+    Execute [tutor] tasks in order. HARD-STOP at the first incomplete [you] task:
+    summarize the current state, tell the learner exactly what to do, and END THE
+    TURN. Never write, complete, or check off a [you] deliverable — that work is
+    the entire point of this project.
+    When the learner reports a [you] task done, verify the observable outcome
+    (run `odin test`, check files) before marking it complete and continuing.
+    Full constitution: .claude/skills/tutor/SKILL.md

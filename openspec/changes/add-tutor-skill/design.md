@@ -54,4 +54,4 @@ The tutor skill is invoked conversationally ("start the next lesson", "resume", 
 
 ## Open Questions
 
-- Does the experimental schema support output paths outside the change dir (D2 primary)? Resolved empirically by the probe task; both branches are specified.
+- ~~Does the experimental schema support output paths outside the change dir (D2 primary)?~~ **Resolved 2026-06-10**: `openspec schema validate` accepts path traversal in `generates`, but the field is a static pattern with no per-lesson variables — a fixed outside path would collide across lessons, and out-of-dir artifacts would not move with the change at archive. **D2 fallback adopted**: `lesson.md` lives in the change dir; finalize task 6.3 copies it to `curriculum/modules/<module>/<lesson>/LESSON.md`.

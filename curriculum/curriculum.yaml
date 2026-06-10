@@ -1,0 +1,25 @@
+# odyne curriculum — single source of truth for curriculum position.
+#
+# Structure:
+#   active_change: <openspec change name> | null   # at most ONE lesson active at a time
+#   modules:
+#     - id: m02                  # stable module id
+#       title: Memory & allocators
+#       phase: 0                 # 0..5 (see curriculum plan)
+#       requires: [m00]          # prerequisite module ids
+#       lessons:
+#         - id: m02-01           # <module>-<nn>
+#           slug: arena          # change name becomes lesson-m02-01-arena
+#           title: The arena allocator
+#           type: kata           # concept | kata | build | design | milestone
+#           status: locked       # locked | available | active | done
+#
+# Status lifecycle: locked → available → active → done (forward only).
+# A lesson becomes `available` when its module's prerequisites and any
+# intra-module predecessors are `done`. Exactly one lesson may be `active`.
+# Set `active_change` when a lesson starts; clear it in the finalize tasks.
+#
+# Modules are seeded by Change 2 (add-engine-curriculum).
+
+active_change: null
+modules: []
