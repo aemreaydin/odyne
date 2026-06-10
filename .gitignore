@@ -1,0 +1,23 @@
+# Odin build outputs
+*.exe
+*.dll
+*.lib
+*.pdb
+*.obj
+*.exp
+*.rdi
+build/
+bin/
+
+# Profiler traces
+*.spall
+*.tracy
+
+# Local agent settings
+.claude/settings.local.json
+
+# OS / editor noise
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vs/
