@@ -5,7 +5,7 @@
 #   modules:
 #     - id: m02                  # stable module id
 #       title: Memory & allocators
-#       phase: 0                 # 0..5 (see curriculum plan)
+#       phase: 0                 # 0..5 (see curriculum/PLAN.md)
 #       requires: [m00]          # prerequisite module ids
 #       lessons:
 #         - id: m02-01           # <module>-<nn>
@@ -19,7 +19,384 @@
 # intra-module predecessors are `done`. Exactly one lesson may be `active`.
 # Set `active_change` when a lesson starts; clear it in the finalize tasks.
 #
-# Modules are seeded by Change 2 (add-engine-curriculum).
+# Locked modules may be amended at milestone retrospectives (see PLAN.md);
+# `done` history is never rewritten.
 
 active_change: null
-modules: []
+modules:
+  # ── Phase 0 — Foundations ──────────────────────────────────────────────
+  - id: m00
+    title: Odin for C++ programmers
+    phase: 0
+    requires: []
+    lessons:
+      - id: m00-01
+        slug: odin-tour
+        title: The Odin tour — deltas from C++
+        type: concept
+        status: available
+      - id: m00-02
+        slug: odin-kata
+        title: Odin warm-up katas
+        type: kata
+        status: locked
+
+  - id: m01
+    title: Tooling & project skeleton
+    phase: 0
+    requires: [m00]
+    lessons:
+      - id: m01-01
+        slug: skeleton
+        title: Build, test, and the layered package skeleton
+        type: build
+        status: locked
+
+  - id: m02
+    title: Memory & allocators
+    phase: 0
+    requires: [m01]
+    lessons:
+      - id: m02-01
+        slug: allocators
+        title: Odin's allocator model
+        type: concept
+        status: locked
+      - id: m02-02
+        slug: arena
+        title: The arena allocator
+        type: kata
+        status: locked
+      - id: m02-03
+        slug: pool
+        title: The pool allocator
+        type: kata
+        status: locked
+      - id: m02-04
+        slug: core-memory
+        title: "Graduate: core memory package"
+        type: build
+        status: locked
+
+  - id: m03
+    title: Containers & handles
+    phase: 0
+    requires: [m02]
+    lessons:
+      - id: m03-01
+        slug: handles
+        title: Handles, not pointers
+        type: concept
+        status: locked
+      - id: m03-02
+        slug: handle-pool
+        title: The generational handle pool
+        type: kata
+        status: locked
+      - id: m03-03
+        slug: core-containers
+        title: "Graduate: core containers package"
+        type: build
+        status: locked
+
+  # ── Phase 1 — Platform ─────────────────────────────────────────────────
+  - id: m10
+    title: Window & input
+    phase: 1
+    requires: [m03]
+    lessons:
+      - id: m10-01
+        slug: win32-window
+        title: A Win32 window
+        type: build
+        status: locked
+      - id: m10-02
+        slug: input
+        title: Keyboard & mouse input
+        type: build
+        status: locked
+
+  - id: m11
+    title: Timing & main loop
+    phase: 1
+    requires: [m10]
+    lessons:
+      - id: m11-01
+        slug: timing
+        title: High-resolution timing
+        type: kata
+        status: locked
+      - id: m11-02
+        slug: main-loop
+        title: The main loop & fixed timestep
+        type: build
+        status: locked
+
+  # ── Phase 2 — Renderer I (Vulkan 2D) ───────────────────────────────────
+  - id: m20
+    title: Vulkan bootstrap
+    phase: 2
+    requires: [m11]
+    lessons:
+      - id: m20-01
+        slug: vulkan-mental-model
+        title: The Vulkan mental model
+        type: concept
+        status: locked
+      - id: m20-02
+        slug: instance-device
+        title: Instance, device, queues
+        type: build
+        status: locked
+      - id: m20-03
+        slug: swapchain
+        title: The swapchain
+        type: build
+        status: locked
+
+  - id: m21
+    title: First triangle
+    phase: 2
+    requires: [m20]
+    lessons:
+      - id: m21-01
+        slug: shaders-pipeline
+        title: Shaders & the graphics pipeline
+        type: build
+        status: locked
+      - id: m21-02
+        slug: triangle
+        title: Commands, sync, triangle
+        type: build
+        status: locked
+
+  - id: m22
+    title: GPU resources
+    phase: 2
+    requires: [m21]
+    lessons:
+      - id: m22-01
+        slug: buffers
+        title: Buffers & staging
+        type: build
+        status: locked
+      - id: m22-02
+        slug: textures
+        title: Images, samplers, textures
+        type: build
+        status: locked
+
+  - id: m23
+    title: 2D sprite renderer
+    phase: 2
+    requires: [m22]
+    lessons:
+      - id: m23-01
+        slug: sprite-api
+        title: "Design: the sprite batch API"
+        type: design
+        status: locked
+      - id: m23-02
+        slug: sprite-batch
+        title: The sprite batch
+        type: build
+        status: locked
+      - id: m23-03
+        slug: debug-overlay
+        title: Debug text & stats overlay
+        type: build
+        status: locked
+
+  # ── Phase 3 — Game & Milestone 1 ───────────────────────────────────────
+  - id: m30
+    title: Game math
+    phase: 3
+    requires: [m23]
+    lessons:
+      - id: m30-01
+        slug: linalg-collision
+        title: core:math/linalg & 2D collision
+        type: kata
+        status: locked
+
+  - id: m31
+    title: Entities & game loop
+    phase: 3
+    requires: [m30]
+    lessons:
+      - id: m31-01
+        slug: entities
+        title: Entities the simple way
+        type: build
+        status: locked
+
+  - id: m32
+    title: Audio
+    phase: 3
+    requires: [m11]
+    lessons:
+      - id: m32-01
+        slug: audio-concepts
+        title: Sound, buffers, latency
+        type: concept
+        status: locked
+      - id: m32-02
+        slug: wasapi-output
+        title: WASAPI output
+        type: build
+        status: locked
+      - id: m32-03
+        slug: mixer
+        title: The mixer
+        type: build
+        status: locked
+
+  - id: m33
+    title: "Milestone: Breakout"
+    phase: 3
+    requires: [m31, m32]
+    lessons:
+      - id: m33-01
+        slug: breakout
+        title: Breakout
+        type: milestone
+        status: locked
+
+  # ── Phase 4 — Engine systems ───────────────────────────────────────────
+  - id: m40
+    title: Asset pipeline & hot reload
+    phase: 4
+    requires: [m33]
+    lessons:
+      - id: m40-01
+        slug: asset-concepts
+        title: Assets, formats, cooking
+        type: concept
+        status: locked
+      - id: m40-02
+        slug: asset-loader
+        title: The asset loader
+        type: build
+        status: locked
+      - id: m40-03
+        slug: hot-reload
+        title: Shader & asset hot reload
+        type: build
+        status: locked
+
+  - id: m41
+    title: Job system
+    phase: 4
+    requires: [m33]
+    lessons:
+      - id: m41-01
+        slug: concurrency-model
+        title: Threads, atomics, fibers
+        type: concept
+        status: locked
+      - id: m41-02
+        slug: job-queue
+        title: The job queue
+        type: kata
+        status: locked
+      - id: m41-03
+        slug: jobs
+        title: "Graduate: the job system"
+        type: build
+        status: locked
+
+  - id: m42
+    title: ECS & data-oriented design
+    phase: 4
+    requires: [m33]
+    lessons:
+      - id: m42-01
+        slug: dod
+        title: Data-oriented design
+        type: concept
+        status: locked
+      - id: m42-02
+        slug: ecs-storage
+        title: Component storage
+        type: kata
+        status: locked
+      - id: m42-03
+        slug: ecs
+        title: "Graduate: ECS in the engine"
+        type: build
+        status: locked
+
+  - id: m43
+    title: Renderer II (3D)
+    phase: 4
+    requires: [m40]
+    lessons:
+      - id: m43-01
+        slug: 3d-pipeline
+        title: Depth, perspective, spaces
+        type: concept
+        status: locked
+      - id: m43-02
+        slug: mesh-camera
+        title: Meshes & the camera
+        type: build
+        status: locked
+      - id: m43-03
+        slug: lighting
+        title: Lighting
+        type: build
+        status: locked
+      - id: m43-04
+        slug: gltf-models
+        title: glTF model loading
+        type: build
+        status: locked
+
+  # ── Phase 5 — RHI & Milestone 2 ────────────────────────────────────────
+  - id: m50
+    title: RHI seam
+    phase: 5
+    requires: [m43]
+    lessons:
+      - id: m50-01
+        slug: rhi-design
+        title: "Design: the RHI seam"
+        type: design
+        status: locked
+      - id: m50-02
+        slug: rhi-refactor
+        title: Vulkan behind the seam
+        type: build
+        status: locked
+
+  - id: m51
+    title: DX12 backend
+    phase: 5
+    requires: [m50]
+    lessons:
+      - id: m51-01
+        slug: dx12-deltas
+        title: DX12 for Vulkan programmers
+        type: concept
+        status: locked
+      - id: m51-02
+        slug: dx12-device
+        title: Device, swapchain, commands
+        type: build
+        status: locked
+      - id: m51-03
+        slug: dx12-parity
+        title: Parity — one scene, two backends
+        type: build
+        status: locked
+
+  - id: m52
+    title: "Milestone: Game 2"
+    phase: 5
+    requires: [m51, m41, m42]
+    lessons:
+      - id: m52-01
+        slug: game2
+        title: Game 2
+        type: milestone
+        status: locked
