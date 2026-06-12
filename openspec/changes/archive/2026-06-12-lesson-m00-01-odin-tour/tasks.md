@@ -27,4 +27,4 @@
 - [x] 3.2 [you] Write the journal entry in curriculum/JOURNAL.md (Built/Measured/Takeaways/Reflections)
 - [x] 3.3 [tutor] Copy lesson.md → curriculum/modules/m00/m00-01-odin-tour/LESSON.md
 - [x] 3.4 [tutor] Update curriculum/curriculum.yaml (m00-01 → done; m00-02 → available; clear active_change)
-- [ ] 3.5 [tutor] Commit the lesson; hand off to /opsx:archive
+- [x] 3.5 [tutor] Commit the lesson; hand off to /opsx:archive
