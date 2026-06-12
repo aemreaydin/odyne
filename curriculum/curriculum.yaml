@@ -34,12 +34,12 @@ modules:
         slug: odin-tour
         title: The Odin tour — deltas from C++
         type: concept
-        status: available
+        status: done
       - id: m00-02
         slug: odin-kata
         title: Odin warm-up katas
         type: kata
-        status: locked
+        status: available
 
   - id: m01
     title: Tooling & project skeleton

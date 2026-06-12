@@ -79,11 +79,11 @@ Never reuse or rename a key once a lesson cites it.
 - **Notes:** Fiber-based job system and frame-centric engine design — m41's industry anchor.
 
 ### ODIN
-- **Title:** Odin Programming Language — Overview
+- **Title:** Odin Programming Language — site & Overview docs
 - **Author:** Odin team (Ginger Bill et al.)
 - **Type:** docs
-- **Where:** https://odin-lang.org/docs/overview/
-- **Verified:** 2026-06-10
+- **Where:** https://odin-lang.org/docs/overview/ · https://odin-lang.org/
+- **Verified:** 2026-06-12
 - **Notes:** Language semantics: defer, context, slices, parapoly, SOA — m00 and every C++-delta explanation.
 
 ### RTR
