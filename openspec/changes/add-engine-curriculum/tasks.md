@@ -23,5 +23,5 @@
 ## 4. Review & finalize
 
 - [x] 4.1 Learner reviews the full curriculum (PLAN.md + curriculum.yaml) and requests adjustments; apply them across both files (reviewed 2026-06-12: approved as-is; GEA 4e confirmed as the learner's copy)
-- [ ] 4.2 Run `openspec validate add-engine-curriculum` (or equivalent status check) and fix any artifact issues
-- [ ] 4.3 Commit the change; after archive, confirm `openspec/specs/engine-curriculum/spec.md` exists and the tutor's "status" view renders the new tree with m00-01 as the next available lesson
+- [x] 4.2 Run `openspec validate add-engine-curriculum` (or equivalent status check) and fix any artifact issues
+- [x] 4.3 Commit the change (c9d7844); after archive, confirm `openspec/specs/engine-curriculum/spec.md` exists and the tutor's "status" view renders the new tree with m00-01 as the next available lesson
