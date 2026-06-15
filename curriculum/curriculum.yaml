@@ -39,7 +39,7 @@ modules:
         slug: odin-kata
         title: Odin warm-up katas
         type: kata
-        status: available
+        status: done
 
   - id: m01
     title: Tooling & project skeleton
@@ -50,7 +50,7 @@ modules:
         slug: skeleton
         title: Build, test, and the layered package skeleton
         type: build
-        status: locked
+        status: available
 
   - id: m02
     title: Memory & allocators
