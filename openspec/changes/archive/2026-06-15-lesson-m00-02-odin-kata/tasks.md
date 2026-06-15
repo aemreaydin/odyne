@@ -44,4 +44,4 @@
 - [x] 6.3 [you] Write Takeaways + Reflections in curriculum/JOURNAL.md (your own words)
 - [x] 6.4 [tutor] Copy lesson.md → curriculum/modules/m00/m00-02-odin-kata/LESSON.md
 - [x] 6.5 [tutor] Update curriculum/curriculum.yaml (m00-02 → done; m01-01 → available; clear active_change)
-- [ ] 6.6 [tutor] Commit the lesson; hand off to /opsx:archive
+- [x] 6.6 [tutor] Commit the lesson; hand off to /opsx:archive
