@@ -33,8 +33,9 @@
 
 ## 6. Finalize
 
-- [ ] 6.1 [you] Run the measurement task; record the numbers
-- [ ] 6.2 [you] Write the journal entry in curriculum/JOURNAL.md
-- [ ] 6.3 [tutor] Copy lesson.md → curriculum/modules/<module>/<lesson>/LESSON.md
-- [ ] 6.4 [tutor] Update curriculum/curriculum.yaml (status, unlocks, clear active pointer)
-- [ ] 6.5 [tutor] Commit the lesson; hand off to /opsx:archive
+- [ ] 6.1 [tutor] Run the measurement task; record Built + Measured in curriculum/JOURNAL.md
+- [ ] 6.2 [tutor] Walk the learner through what the numbers mean
+- [ ] 6.3 [you] Write Takeaways + Reflections in curriculum/JOURNAL.md (your own words)
+- [ ] 6.4 [tutor] Copy lesson.md → curriculum/modules/<module>/<lesson>/LESSON.md
+- [ ] 6.5 [tutor] Update curriculum/curriculum.yaml (status, unlocks, clear active pointer)
+- [ ] 6.6 [tutor] Commit the lesson; hand off to /opsx:archive

@@ -35,7 +35,10 @@ so the learner owns the middle, where the learning happens.
    call out "C++ habit vs DOD approach" moments instead of silently steering around them.
 6. **Industry + performance, every lesson.** `lesson.md` includes an "In the industry"
    section (how shipping engines do it, cited) and "Performance notes" defining a
-   measurement task whose numbers land in the journal.
+   measurement task whose numbers land in the journal. The **tutor** runs the
+   measurement (benchmark/trace/build timings — it's instrumentation, like tests) and
+   records the **Built + Measured** facts; the tutor then walks the learner through what
+   the numbers mean; the **learner** writes **Takeaways + Reflections** in their own words.
 7. **Red before green.** Your tests must compile against the stubs and fail before the
    learner implements. Use `core:testing` (`@(test)`) so per-test leak checking applies.
 8. **Modularity review.** Reviews check the layering law — `core → platform → render → game`,
