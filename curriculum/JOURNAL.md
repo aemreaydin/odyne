@@ -16,6 +16,30 @@ lesson's measurement task.
 
 ---
 
+## 2026-06-16 — lesson-m01-01: skeleton
+
+- **Built:** `engine/` as four layered packages — `core` (`VERSION` + `version()`, the
+  unit-tested seam), `platform`/`render` (`info()` identity stubs, import `core` only),
+  `game` (`boot()` assembles the four-layer banner via `fmt.tprintf`; imports core+platform+
+  render) — plus `examples/testbed` (`main` prints `game.boot()`) and `build.ps1`. Imports
+  point downward only; `engine` collection wired. Banner:
+  `odyne 0.1.0 | platform: platform | render: render | game: stub`.
+- **Measured:** (tutor-run, median of 3)
+  - Clean build of `examples/testbed`: `-o:none` 216.6 ms / 581,120 B · `-o:speed` 940.6 ms /
+    417,792 B → optimized build ~4.3× slower to compile, binary ~28% smaller.
+  - Incremental (no-op touch of `engine/core/core.odin`, rebuild `-o:none`): 198.6 ms ≈ clean
+    216.6 ms → **no incremental savings.** Odin recompiles the whole program every build
+    (whole-program compiler, no object cache). The number to watch grow in phase 2.
+  - `odin test engine/core`: 245.4 ms · 2 tests green · leak-clean · `-vet -strict-style` clean.
+  - Packages compiled: 5 engine packages (core, platform, render, game, testbed) + `core:fmt`/runtime.
+  - The ~580 KB `-o:none` binary is an essentially-empty engine — fixed runtime+`fmt` overhead, the "zero point."
+- **Takeaways:**
+  The package system makes organization easier compared to C++. We don't need to deal with header files - #pragma onces etc.\
+  String concatenation with '+' can only be done using constant strings
+  -collection=engine:engine exposes the packages as "engine:..."
+- **Reflections:**
+  A very straightforward section, nothing particularly challenging.
+
 ## 2026-06-15 — lesson-m00-02: odin-kata
 
 - **Built:** `katas/odin_warmup/` — first kata package. Four procedures over caller-owned

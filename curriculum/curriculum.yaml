@@ -50,7 +50,7 @@ modules:
         slug: skeleton
         title: Build, test, and the layered package skeleton
         type: build
-        status: available
+        status: done
 
   - id: m02
     title: Memory & allocators
@@ -61,7 +61,7 @@ modules:
         slug: allocators
         title: Odin's allocator model
         type: concept
-        status: locked
+        status: available
       - id: m02-02
         slug: arena
         title: The arena allocator
