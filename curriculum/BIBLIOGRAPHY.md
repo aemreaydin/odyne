@@ -86,6 +86,14 @@ Never reuse or rename a key once a lesson cites it.
 - **Verified:** 2026-06-12
 - **Notes:** Language semantics: defer, context, slices, parapoly, SOA — m00 and every C++-delta explanation.
 
+### ODIN-MEM
+- **Title:** Odin package documentation — `base:runtime` allocator interface & `core:mem`
+- **Author:** Odin team (Ginger Bill et al.)
+- **Type:** docs
+- **Where:** https://pkg.odin-lang.org/base/runtime/ (Allocator, Allocator_Proc, Allocator_Mode, Allocator_Error) · https://pkg.odin-lang.org/core/mem/
+- **Verified:** 2026-06-16
+- **Notes:** The concrete allocator interface (`Allocator{procedure, data}`, the 8-mode `Allocator_Mode`, `Allocator_Error`) and `core:mem` helpers — m02's implementation reference. Cite as `[ODIN-MEM runtime.Allocator]`.
+
 ### RTR
 - **Title:** Real-Time Rendering, 4th Edition
 - **Author:** Tomas Akenine-Möller, Eric Haines, Naty Hoffman, Angelo Pesce, Michał Iwanicki, Sébastien Hillaire

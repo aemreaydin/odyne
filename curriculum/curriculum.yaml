@@ -61,12 +61,12 @@ modules:
         slug: allocators
         title: Odin's allocator model
         type: concept
-        status: available
+        status: done
       - id: m02-02
         slug: arena
         title: The arena allocator
         type: kata
-        status: locked
+        status: available
       - id: m02-03
         slug: pool
         title: The pool allocator

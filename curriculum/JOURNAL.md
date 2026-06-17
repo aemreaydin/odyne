@@ -16,6 +16,34 @@ lesson's measurement task.
 
 ---
 
+## 2026-06-17 — lesson-m02-01: allocators (concept)
+
+- **Built:** No engine code (concept lesson). Lesson covers Odin's allocator model:
+  allocation-as-runtime-policy, the `runtime.Allocator{procedure, data}` value-type
+  interface, the 8-mode `Allocator_Proc` (Alloc/Free/Free*All/Resize/Query*\*/…\_Non_Zeroed),
+  `context.allocator` vs per-thread `context.temp_allocator`, scope-override propagation
+  through callees, and the ownership discipline slices don't encode. Registered cite-key
+  `ODIN-MEM` (base:runtime + core:mem package docs). Sets up the m02-02 arena / m02-03 pool katas.
+- **Measured:** (tutor-run throwaway bench, `-o:speed`, N=1,000,000 × 64-byte objects, best of 3)
+  - (a) heap `context.allocator` (`new`/`free`) : **46.2 ns/alloc**
+  - (b) arena `temp_allocator`, zeroed (`new` path): **5.36 ns/alloc**
+  - (c) arena `temp_allocator`, non-zeroed : **4.80 ns/alloc**
+  - **heap / arena ≈ 8.6×** — the general-purpose heap costs ~9× an arena bump for small allocs.
+  - **zeroing a 64-byte object ≈ 0.56 ns** (~10% of the arena alloc; the `Alloc` vs
+    `Alloc_Non_Zeroed` gap). Cache-resident memset is cheap; the win from `Non_Zeroed` is
+    real but small, and only safe when you fully overwrite the buffer anyway.
+  - Note: a first attempt at a "direct bump floor" was discarded — `-o:speed` folded the
+    pure-arithmetic loop to a closed form (0.000 ns). Lesson for benchmarking: route through
+    an opaque call (or read back data-dependent results) or the optimizer deletes your loop.
+- **Takeaways:**
+  temp_allocator allocated objects live until a free_all is called. However, as it is not long-lived
+  it is important to be careful of what allocation we're passing.
+  Calling a thread will not implicitly use the current context - it has to be passed explicitly.
+  Alloc_Non_Zeroed is useful when you know you're going to overwrite the buffer immediately.
+- **Reflections:**
+  It's going to take a while to get used to the odin allocations coming from cpp, however,
+  user having the freedom to easily define memory concepts is definitely very useful.
+
 ## 2026-06-16 — lesson-m01-01: skeleton
 
 - **Built:** `engine/` as four layered packages — `core` (`VERSION` + `version()`, the
