@@ -18,7 +18,7 @@
 ## 1. Orient
 
 - [x] 1.1 [tutor] Verify/register cite-keys in BIBLIOGRAPHY.md (all already registered: GB-MEM, GEA, ODIN-MEM, ODIN; GB-MEM pt.2 arena URL verified); write lesson.md
-- [ ] 1.2 [you] Read lesson.md and the required reading (GB-MEM pt.2; the `Allocator_Proc`/`Allocator_Mode`/`Allocator_Error` entries); note questions
+- [x] 1.2 [you] Read lesson.md and the required reading (GB-MEM pt.2; the `Allocator_Proc`/`Allocator_Mode`/`Allocator_Error` entries); note questions
 
 ## 2. Design
 
@@ -32,7 +32,7 @@
 
 ## 4. Build
 
-- [ ] 4.1 [you] Implement the arena until `odin test katas/arena` is green and the leak check is clean
+- [x] 4.1 [you] Implement the arena until `odin test katas/arena` is green and the leak check is clean
 
 ## 5. Review
 
