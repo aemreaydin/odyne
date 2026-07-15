@@ -16,6 +16,37 @@ lesson's measurement task.
 
 ---
 
+## 2026-07-15 — lesson-m02-02: arena
+
+- **Built:** `katas/arena/` — the arena (bump) allocator implementing Odin's
+  `Allocator_Proc`. `Arena{data (borrowed backing), offset, prev_offset, peak_used}`.
+  Public surface: `init`, `allocator`, `allocator_proc`, `free_all`; file-private
+  helpers `alloc`/`resize`/`align_forward`/`safe_add`. Aligns the **absolute address**
+  (`raw_data(data)+offset`), so a misaligned backing still returns aligned pointers;
+  `Resize` fast-paths the most-recent allocation via `prev_offset` (grow/shrink in
+  place, zeroing only the grown tail), else alloc-new + copy; `Free` →
+  `.Mode_Not_Implemented`; `Query_Features` reports the supported mode set. 19
+  `core:testing` tests (alloc/zeroing/alignment-on-misaligned-backing/OOM/free/
+  free-all-reuse/resize-general/resize-in-place/grow-preserves-old/query/context),
+  all green · leak-clean · `-vet -strict-style` clean.
+- **Measured:** (tutor-run · `odin run -o:speed` · N=100,000 × 32 B, align 8 · avg of 3)
+  - **Alloc:** arena ≈ **15 ns/alloc** vs default heap ≈ **50 ns/alloc** → **~3.3× faster**.
+  - With `-disable-assert`: arena ≈ **12.6 ns/alloc** — the per-call power-of-two/size
+    `assert`s cost ~2–3 ns/alloc (~17%); speedup rises to ~3.9×.
+  - The arena's ~15 ns is dominated by the **allocator-interface path** (indirect call
+    through `Allocator.procedure` + 8-way mode `switch` + hot-path asserts), not the
+    bump — the raw bump is a couple ns.
+  - **Reclaim:** arena `free_all` ≈ **0–300 ns TOTAL** for all 100k objects (one pointer
+    reset, O(1), below timer granularity) vs heap freeing each block ≈ **24–27 ns/obj**,
+    **~2.5 ms total**. Bulk reset vs per-object free ≈ **thousands×** on total reclaim.
+  - Bench harness: `katas/arena_bench/main.odin`.
+- **Takeaways:** <!-- [you] review findings + probe answers worth keeping -->
+  Arena allocation will be very useful going forward - this is just a start - there are
+  tons of improvements that can be made, and modifications.
+- **Reflections:** <!-- [you] your own words: what was hard, what clicked, open questions -->
+  First time implementing an arena allocator - took longer than expected even though it's a relatively
+  simple allocator. Getting used to how odin does things is the main challenge.
+  
 ## 2026-06-17 — lesson-m02-01: allocators (concept)
 
 - **Built:** No engine code (concept lesson). Lesson covers Odin's allocator model:

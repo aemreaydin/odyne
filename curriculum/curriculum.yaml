@@ -66,12 +66,12 @@ modules:
         slug: arena
         title: The arena allocator
         type: kata
-        status: available
+        status: done
       - id: m02-03
         slug: pool
         title: The pool allocator
         type: kata
-        status: locked
+        status: available
       - id: m02-04
         slug: core-memory
         title: "Graduate: core memory package"
