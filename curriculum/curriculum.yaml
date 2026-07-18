@@ -76,7 +76,7 @@ modules:
         slug: core-memory
         title: "Graduate: core memory package"
         type: build
-        status: available
+        status: done
 
   - id: m03
     title: Containers & handles
@@ -87,7 +87,7 @@ modules:
         slug: handles
         title: Handles, not pointers
         type: concept
-        status: locked
+        status: available
       - id: m03-02
         slug: handle-pool
         title: The generational handle pool

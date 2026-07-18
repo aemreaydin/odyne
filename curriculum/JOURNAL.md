@@ -16,6 +16,32 @@ lesson's measurement task.
 
 ---
 
+## 2026-07-18 — lesson-m02-04: core-memory (graduate)
+
+- **Built:** `engine/core/memory/` (`package memory`) — the arena (m02-02) and pool (m02-03)
+  graduated out of `katas/` into the engine's core layer, prefixed for coexistence
+  (`memory.arena_init`, `memory.pool_init`, …), bodies unchanged. Package named `memory`, not
+  `mem`, to dodge a hard Odin constraint (a `package mem` can't import `core:mem` —
+  `Duplicate declaration of 'package mem'`; alias doesn't fix it). Folded in a bonus
+  `Logging_Allocator` — a wrapping `Allocator_Proc` that forwards to any backing allocator and
+  prints each op (mode/size/align/caller/result), aligned via the `tprintf → %-Ns` idiom
+  (Odin zero-pads integer widths; only strings space-pad). First lesson to merge an engine
+  spec delta: `openspec/specs/core-memory` (arena, pool, logging, allocator conformance,
+  layering). Demo: testbed allocates through a core arena + pool and runs correctly. 10
+  `core:testing` conformance tests, green · leak-clean · `-vet -strict-style` clean.
+- **Measured:** (tutor-run)
+  - `odin test engine/core/memory`: 10 tests, ~4–9 ms · leak-clean · vet/style clean.
+  - Testbed clean build (`-o:speed`): ~1.8–2.4 s · binary **464,384 B** vs m01-01's empty-engine
+    baseline **417,792 B** → **+~46 KB (~11%)** — the first real code (allocators + `core:mem` +
+    `core:fmt` for logging) landing in `core`. m01-01's "zero point" starts to move.
+  - No perf regression: the arena/pool bodies are byte-for-byte the kata code, so m02-02's
+    ~15 ns/alloc and m02-03's ~11.5/4.5 ns alloc/free hold unchanged in-engine.
+- **Takeaways:** <!-- [you] review findings + probe answers worth keeping -->
+  The package creation - library abstraction logic is different than C++ - more similar to C.\
+  One package that stores the memory code is the way I decided to go. I think in the future - or for 
+  bigger packages - this might be hard to maintain.
+- **Reflections:** <!-- [you] your own words: what was hard, what clicked, open questions -->
+  Not a complex milestone - just moved code around. Logging allocator was a nice addition
 ## 2026-07-17 — lesson-m02-03: pool
 
 - **Built:** `katas/pool/` — the pool (fixed-size block) allocator implementing Odin's
