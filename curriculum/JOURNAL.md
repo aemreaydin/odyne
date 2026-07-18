@@ -16,6 +16,40 @@ lesson's measurement task.
 
 ---
 
+## 2026-07-17 — lesson-m02-03: pool
+
+- **Built:** `katas/pool/` — the pool (fixed-size block) allocator implementing Odin's
+  `Allocator_Proc`. `Pool{data (borrowed backing), block_size (effective stride), alignment,
+  head: ^Free_Node, free_count}`. Free blocks are tracked by an **intrusive singly-linked
+  free list** — the `next` link is overlaid on each free block's own bytes (no side metadata).
+  Public: `init`, `allocator`, `allocator_proc`, `free_all`; public helpers `alloc`/`free_block`.
+  init aligns the backing base once (re-slice off the padding), bumps block size to
+  `align_forward_int(max(requested, size_of(rawptr)), alignment)`, and threads the list;
+  alloc pops the head (returns exactly `size` bytes, zeroes on `.Alloc`), free pushes back —
+  both O(1). Two distinct errors: `size > block_size` → `.Invalid_Argument`, empty pool →
+  `.Out_Of_Memory`; over-alignment rejected; `.Resize` → `.Mode_Not_Implemented`;
+  `.Query_Features` includes `.Free`. Range + block-alignment asserts on free. 19
+  `core:testing` tests, all green · leak-clean · `-vet -strict-style` clean.
+- **Measured:** (tutor-run · `odin run -o:speed` · N=100,000 × 32 B blocks, align 8 · avg of 3)
+  - **pool alloc ≈ 11.5 ns/op**, **pool free ≈ 4.5 ns/op** (free is cheaper — just a push +
+    counter; alloc also zeroes 32 B and runs the size/alignment checks).
+  - **pool alloc+free churn ≈ 15 ns/cycle** vs **heap new/free ≈ 38 ns/cycle → ~2.5× faster**.
+  - The headline vs the arena: the pool posts a **free** number at all (~4.5 ns, O(1) per
+    object) and sustains alloc/free churn at constant memory — the arena had no individual
+    free, only O(1) bulk reset. Pool trades the arena's variable-size freedom for individual
+    recycling of one fixed size.
+  - Like the arena, the ~2.5× alloc-side gap is modest: Windows' heap is decent for small
+    fixed churn, and the pool's per-op cost is mostly interface indirection + mode switch +
+    zeroing, not the pointer pop/push itself.
+  - Bench harness: `katas/pool_bench/main.odin`.
+- **Takeaways:** <!-- [you] review findings + probe answers worth keeping -->
+  Pool allocator is fixed-sized allocators usually used for same sized elemetns in game programming
+
+- **Reflections:** <!-- [you] your own words: what was hard, what clicked, open questions -->
+  I find it hard to wrap my head around the alignment logic usually, in time it will be easier hopefully
+  Understanding memory management conceptually is nice, makes me confident as a developer to learn
+  more about low level subjects.
+
 ## 2026-07-15 — lesson-m02-02: arena
 
 - **Built:** `katas/arena/` — the arena (bump) allocator implementing Odin's

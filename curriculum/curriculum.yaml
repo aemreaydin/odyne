@@ -71,12 +71,12 @@ modules:
         slug: pool
         title: The pool allocator
         type: kata
-        status: available
+        status: done
       - id: m02-04
         slug: core-memory
         title: "Graduate: core memory package"
         type: build
-        status: locked
+        status: available
 
   - id: m03
     title: Containers & handles
