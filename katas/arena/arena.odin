@@ -98,7 +98,6 @@ safe_add :: #force_inline proc "contextless" (a, b: $T) -> (T, bool) {
 	return val, !overflowed
 }
 
-@(private = "file")
 alloc :: proc(a: ^Arena, size: int, alignment: int, zero: bool) -> (data: []byte, err: mem.Allocator_Error) {
 	assert(size >= 0, "size must be non-negative")
 
@@ -125,7 +124,6 @@ alloc :: proc(a: ^Arena, size: int, alignment: int, zero: bool) -> (data: []byte
 	return
 }
 
-@(private = "file")
 resize :: proc(a: ^Arena, old_memory: rawptr, old_size: int, size: int, alignment: int, zero: bool) -> (data: []byte, err: mem.Allocator_Error) {
 	old_data := ([^]byte)(old_memory)
 
