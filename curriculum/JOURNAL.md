@@ -16,6 +16,44 @@ lesson's measurement task.
 
 ---
 
+## 2026-07-19 — lesson-m03-01: handles (concept)
+
+- **Built:** No engine code (concept lesson). Lesson covers the referencing discipline
+  module m03 builds on: why stored cross-system pointers rot (object death / storage
+  relocation / slot reuse), the generational handle (index bits + generation bits,
+  per-slot counter bumped on free, stale = generation mismatch at resolve), Bitsquid's
+  storage designs (map baseline · array-with-holes + intrusive freelist · packed array +
+  index table with swap-with-last), the borrowing rule (resolve → use locally → drop,
+  store only the handle), and `distinct` + ZII (zero handle = invalid) for type-safe,
+  null-safe handles. Registered cite-keys FLOOOH, BITSQUID, ZYL-HANDLES; GEA bibliography
+  entry switched to the learner's 3rd edition (object references = §16.5 in 3e, was
+  mis-cited as 4e §17.5). Sets up m03-02 (generational handle pool kata) and m03-03
+  (graduate into `engine:core`). Bench harness: `katas/handles_bench/main.odin`.
+- **Measured:** (tutor-run · `odin run -o:speed` · odin dev-2026-07-nightly:819fdc7 ·
+  N=100,000 × 32 B entities, 50 passes, sums-equal check on all paths · avg of 3)
+  - **(a) dense iteration ≈ 0.23 ns/visit** — the owning system's private hot loop.
+  - **(b) handle resolve, storage order ≈ 0.41 ns/visit (~1.9× a)** — slot load + generation
+    compare + double indirection adds only **~0.2 ns** when access is sequential: the
+    liveness check is essentially free.
+  - **(c) handle resolve, shuffled ≈ 1.61 ns/visit (~7× a)** — same resolve, random visit
+    order → ~4× case (b). **Locality, not the generation check, is the real cost.**
+  - **(d) pointer chase, shuffled ≈ 0.85–1.70 ns/visit (noisiest; ~4–7× a)** — ≈ (c):
+    under identical access patterns, handle indirection costs nothing measurable over raw
+    pointers. Caveat: a fresh heap placed 100k same-size allocs compactly; a churned,
+    long-lived heap scatters them — and these visits are independent loads the CPU can
+    overlap, where a real object *graph* chains dependent hops.
+  - **(e) map lookup, shuffled ≈ 6.11 ns/visit (~24–30× a, ~4× the array designs)** —
+    Bitsquid's "STL method is the slow one" verdict reproduced 15 years later against
+    Odin's modern open-addressing map.
+  - Working set ~8 MB total (L2/L3-resident); absolute ns are flattered by cache residency
+    and memory-level parallelism — carry the **ratios**, not the ns.
+- **Takeaways:** <!-- [you] review findings + probe answers worth keeping -->
+  The Handle system was super foreign a couple years ago, now understanding it and it makes perfect sense.
+  The packed-array system is perfect for hot-loops and array-with-holes is great for resource management.
+- **Reflections:** <!-- [you] your own words: what was hard, what clicked, open questions -->
+  Still hard to visualize what I need when I need them - will take some time to get used to these
+  concepts.
+
 ## 2026-07-18 — lesson-m02-04: core-memory (graduate)
 
 - **Built:** `engine/core/memory/` (`package memory`) — the arena (m02-02) and pool (m02-03)

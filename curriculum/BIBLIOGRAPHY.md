@@ -22,6 +22,14 @@ Never reuse or rename a key once a lesson cites it.
 
 ---
 
+### BITSQUID
+- **Title:** Managing Decoupling Part 4 — The ID Lookup Table
+- **Author:** Niklas Frykholm (Niklas Gray), Bitsquid
+- **Type:** article
+- **Where:** https://bitsquid.blogspot.com/2011/09/managing-decoupling-part-4-id-lookup.html
+- **Verified:** 2026-07-18
+- **Notes:** The classic id→object storage designs — array-with-holes + freelist, packed array + index table with swap-with-last delete, measured against std::map — m03's handle-pool blueprint.
+
 ### DX12
 - **Title:** Direct3D 12 programming guide
 - **Author:** Microsoft
@@ -38,6 +46,14 @@ Never reuse or rename a key once a lesson cites it.
 - **Verified:** 2026-06-10
 - **Notes:** ECS concepts, archetypes vs sparse sets, DoD/cache glossary — m42's map of the territory.
 
+### FLOOOH
+- **Title:** Handles are the better pointers
+- **Author:** Andre Weissflog
+- **Type:** article
+- **Where:** https://floooh.github.io/2018/06/17/handles-vs-pointers.html
+- **Verified:** 2026-07-18
+- **Notes:** The handles manifesto — index+generation handles, system-owned arrays, stale-handle detection, "pointers are transient locals" — m03's conceptual spine.
+
 ### GB-MEM
 - **Title:** Memory Allocation Strategies (series, parts 1–6)
 - **Author:** Ginger Bill
@@ -47,12 +63,12 @@ Never reuse or rename a key once a lesson cites it.
 - **Notes:** Arena/stack/pool/free-list allocators, by Odin's creator — spine of m02. Cite as `[GB-MEM pt.2]`.
 
 ### GEA
-- **Title:** Game Engine Architecture, 4th Edition (two-volume set)
+- **Title:** Game Engine Architecture, 3rd Edition
 - **Author:** Jason Gregory
 - **Type:** book
-- **Where:** ISBN 9781041162599 · https://www.gameenginebook.com/
-- **Verified:** 2026-06-10
-- **Notes:** The course spine — engine layering, subsystems, the industry view in most lessons. (4e supersedes the 3e named at proposal time; swap if the learner owns 3e.)
+- **Where:** ISBN 9781138035454 · https://www.gameenginebook.com/
+- **Verified:** 2026-07-19 (3e section numbers checked against the publisher's TOC page)
+- **Notes:** The course spine — engine layering, subsystems, the industry view in most lessons. **Citations follow 3e numbering (the learner's copy).** §6.2 memory and §7.2 resource manager match the 4e; the gameplay-systems chapters differ (3e §16.5 object references = 4e §17.5).
 
 ### GLTF
 - **Title:** glTF 2.0 Specification
@@ -117,3 +133,11 @@ Never reuse or rename a key once a lesson cites it.
 - **Where:** https://docs.vulkan.org/spec/latest/index.html
 - **Verified:** 2026-06-10
 - **Notes:** Authoritative API semantics (1.4.353 at verification) — the arbiter when VKGUIDE and reality disagree.
+
+### ZYL-HANDLES
+- **Title:** "Handles are the better pointers": An Odin gamedev follow-up · odin-handle-map
+- **Author:** Karl Zylinski
+- **Type:** article
+- **Where:** https://zylinski.se/posts/handle-based-arrays/ · repo: https://github.com/karl-zylinski/odin-handle-map · three-implementations write-up: https://zylinski.se/posts/handle-based-maps-three-implementations/
+- **Verified:** 2026-07-18
+- **Notes:** floooh's handle idea translated to idiomatic Odin (index+generation handle maps; static / growing-arena / pointer-stable variants) — Odin-side reference for m03.

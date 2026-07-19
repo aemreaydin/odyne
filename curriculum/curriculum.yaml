@@ -87,12 +87,12 @@ modules:
         slug: handles
         title: Handles, not pointers
         type: concept
-        status: available
+        status: done
       - id: m03-02
         slug: handle-pool
         title: The generational handle pool
         type: kata
-        status: locked
+        status: available
       - id: m03-03
         slug: core-containers
         title: "Graduate: core containers package"
