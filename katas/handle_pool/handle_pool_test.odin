@@ -281,3 +281,34 @@ test_retire_at_max_generation :: proc(t: ^testing.T) {
 	_, e := add(&p, 6)
 	testing.expect_value(t, e, Handle_Error.Full) // the only slot is retired → pool is Full
 }
+
+@(test)
+test_clear_rebuilds_full_freelist :: proc(t: ^testing.T) {
+	p: Handle_Pool(int)
+	init(&p, 4)
+	defer destroy(&p)
+
+	// Diverge slot-space from dense-space: fill, then remove two non-last items
+	// (each remove relocates the last item via swap-with-last), so the surviving
+	// live slots are scattered and two slots are already free before the clear.
+	h: [4]Handle
+	for i in 0 ..< 4 {
+		h[i], _ = add(&p, i)
+	}
+	testing.expect_value(t, remove(&p, h[0]), Handle_Error.None)
+	testing.expect_value(t, remove(&p, h[1]), Handle_Error.None)
+
+	clear(&p)
+	testing.expect_value(t, p.count, u32(0))
+
+	// An emptied pool must hand back ALL `capacity` slots again — clear has to
+	// rethread the freelist over every slot, not just the ones that were live.
+	for i in 0 ..< 4 {
+		_, e := add(&p, 100 + i)
+		if !testing.expect_value(t, e, Handle_Error.None) {
+			return
+		}
+	}
+	_, efull := add(&p, 999)
+	testing.expect_value(t, efull, Handle_Error.Full)
+}

@@ -32,18 +32,18 @@
 
 ## 4. Build
 
-- [ ] 4.1 [you] Implement the handle pool until `odin test katas/handle_pool` is green and the leak check is clean
+- [x] 4.1 [you] Implement the handle pool until `odin test katas/handle_pool` is green and the leak check is clean
 
 ## 5. Review
 
-- [ ] 5.1 [tutor] Verify green; review the diff per references/review-rubric.md; ask ≥2 comprehension probes
-- [ ] 5.2 [you] Answer the probes; address review findings
+- [x] 5.1 [tutor] Verify green; review the diff per references/review-rubric.md; ask ≥2 comprehension probes
+- [x] 5.2 [you] Answer the probes; address review findings
 
 ## 6. Finalize
 
-- [ ] 6.1 [tutor] Run the measurement task (`katas/handle_pool_bench/`: add/remove churn vs m02-03 pool + heap; resolve in-order/shuffled/stale-mix vs m03-01 baselines; iteration at high/low occupancy); record Built + Measured in curriculum/JOURNAL.md
-- [ ] 6.2 [tutor] Walk the learner through what the numbers mean
-- [ ] 6.3 [you] Write Takeaways + Reflections in curriculum/JOURNAL.md (your own words)
-- [ ] 6.4 [tutor] Copy lesson.md → curriculum/modules/m03/m03-02-handle-pool/LESSON.md
-- [ ] 6.5 [tutor] Update curriculum/curriculum.yaml (m03-02 → done; m03-03 → available; clear active_change)
-- [ ] 6.6 [tutor] Commit the lesson; hand off to /opsx:archive
+- [x] 6.1 [tutor] Run the measurement task (`katas/handle_pool_bench/`: add/remove churn vs m02-03 pool + heap; resolve in-order/shuffled/stale-mix vs m03-01 baselines; iteration at high/low occupancy); record Built + Measured in curriculum/JOURNAL.md
+- [x] 6.2 [tutor] Walk the learner through what the numbers mean
+- [x] 6.3 [you] Write Takeaways + Reflections in curriculum/JOURNAL.md (your own words)
+- [x] 6.4 [tutor] Copy lesson.md → curriculum/modules/m03/m03-02-handle-pool/LESSON.md
+- [x] 6.5 [tutor] Update curriculum/curriculum.yaml (m03-02 → done; m03-03 → available; clear active_change)
+- [x] 6.6 [tutor] Commit the lesson; hand off to /opsx:archive

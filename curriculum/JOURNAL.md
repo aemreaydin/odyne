@@ -16,6 +16,53 @@ lesson's measurement task.
 
 ---
 
+## 2026-07-21 — lesson-m03-02: handle-pool (kata)
+
+- **Built:** `katas/handle_pool/` — the generational handle pool, a **packed array + index
+  table** (Bitsquid's second design). `Handle_Pool($T){items (dense [0:count)), dense_to_slot,
+  slots, count, free_head/tail, allocator}`; `Slot{gen, dense_idx, next}`; `Handle :: distinct
+  u64` (low 32 slot index, high 32 generation; gens start at 1 so ZII `Handle(0)` never
+  validates). Owned fixed-capacity storage via `init(capacity, allocator)` / `destroy`. `add`
+  appends to the dense array and wires both maps; `remove` swap-with-lasts the last item into the
+  gap, patches the moved item's slot through `dense_to_slot`, bumps the freed slot's generation
+  (retire-on-wrap via `intrinsics.overflow_add`, else FIFO-enqueue); `get`/`get_ptr`/`has` share a
+  private `resolve` (range + gen≠0 + gen-match, garbage-safe); `slice` returns `items[:count]`
+  (iteration is one dense walk); `clear` bumps every live slot's gen (via `dense_to_slot`) then
+  re-threads the whole freelist. First **parapoly struct** in the course. 13 `core:testing` tests
+  (incl. swap-with-last patch, FIFO reuse order, retire-at-max, clear-rebuilds-full-freelist),
+  green · leak-clean · `-vet -strict-style` clean. Kata only — graduates into `engine:core` at
+  m03-03. Bench harness: `katas/handle_pool_bench/main.odin`.
+- **Measured:** (tutor-run · `odin run -o:speed` · odin dev-2026-07-nightly:819fdc7 ·
+  N=100,000 × 32 B Entity · resolve/iterate 50 passes · sums-checked · avg of 3)
+  - **Lifecycle beats the allocator-interface pool — the lesson's hypothesis, confirmed:** hp
+    **add ≈ 4.5 ns/op**, **remove ≈ 3.0 ns/op** vs the m02-03 pool's 11.5 / 4.5; **add+remove
+    churn ≈ 3.9 ns/cycle** vs pool **≈15** (**~3.7×**) and heap **≈40** (**~10×**). Dropping the
+    `Allocator_Proc` indirect call + 8-mode switch + interface dispatch — which *were* the m02
+    numbers — is worth ~4× on a direct-call container. (Churn beats the fill-`add` number because
+    1-live-at-a-time stays L1-resident; the fill streams N×(32 B item + 12 B slot).)
+  - **Resolve ≈ 2.6× the m03-01 scaffolding — the price of a real, safe API, not a bug:**
+    **in-order ≈ 1.08 ns/visit** (scaffolding 0.41), **shuffled ≈ 3.8** (scaffolding 1.61). The
+    delta is structural and expected: `resolve` does a range check + zero-gen check + the
+    `get_ptr`→`resolve`→`unpack` call boundary the inlined scaffolding skipped, and `Slot` is
+    **12 B** — the freelist `next` rides in the resolve-hot cache line — vs the scaffolding's 8 B.
+    The ~2.6× shows up in *both* orders → fixed per-visit overhead (safety + the fat slot), not a
+    cache pathology.
+  - **Stale-mix ≈ 4.2 ns/visit (~half handles stale, storage order) — branches, not data:** ~4×
+    the all-live in-order number despite near-identical memory access. The failed-check path is a
+    cheap early return; the cost is **branch misprediction** on the 50/50 live/stale `if`.
+    Staleness detection is data-cheap and branch-expensive when validity is unpredictable.
+  - **Iteration is dense-array speed and occupancy-independent — the packed payoff:** **high occ
+    ≈ 0.30 ns/visit** (100k live), **low occ ≈ 0.24** (10k live) — both ≈ m03-01's 0.23 dense
+    baseline. Because `slice` is `items[:count]`, per-live-visit cost doesn't move with occupancy;
+    array-with-holes would walk capacity and skip holes, so its per-live cost balloons as the pool
+    empties. Exactly the trade the packed layout was chosen for.
+  - Working set ~4–8 MB (cache-resident); carry the **ratios**, not the ns.
+- **Takeaways:** <!-- [you] review findings + probe answers worth keeping -->
+  Handles are lot easier to use and debug and lot harder to make mistakes with
+  compared to pointers. Packed array handle also makes it easier to iterate on hot loops
+- **Reflections:** <!-- [you] your own words: what was hard, what clicked, open questions -->
+  This was the hardest one so far - I'm still having trouble wrapping my head around the structure with dense_to_slot sometimes but I'm glad I was able to implement.
+  
 ## 2026-07-19 — lesson-m03-01: handles (concept)
 
 - **Built:** No engine code (concept lesson). Lesson covers the referencing discipline

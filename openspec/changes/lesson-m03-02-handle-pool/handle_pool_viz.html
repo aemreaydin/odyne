@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Handle pool — packed layout visualizer · m03-02</title>
+<style>
+  .viz-root{
+    color-scheme: light;
+    --page:#f9f9f7; --surface-1:#fcfcfb;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --item-A:#2a78d6; --item-B:#1baf7a; --item-C:#eda100; --item-D:#008300; --item-E:#4a3aa7;
+    --reverse:#d03b3b; --ok:#006300; --stale:#d03b3b;
+    --chip-bg:#f2f2ef;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])) .viz-root{
+      color-scheme: dark;
+      --page:#0d0d0d; --surface-1:#1a1a19;
+      --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+      --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+      --item-A:#3987e5; --item-B:#199e70; --item-C:#c98500; --item-D:#008300; --item-E:#9085e9;
+      --reverse:#e66767; --ok:#0ca30c; --stale:#e66767;
+      --chip-bg:#232321;
+    }
+  }
+  :root[data-theme="dark"] .viz-root{
+    color-scheme: dark;
+    --page:#0d0d0d; --surface-1:#1a1a19;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+    --item-A:#3987e5; --item-B:#199e70; --item-C:#c98500; --item-D:#008300; --item-E:#9085e9;
+    --reverse:#e66767; --ok:#0ca30c; --stale:#e66767;
+    --chip-bg:#232321;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--page)}
+  .viz-root{
+    font-family: system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:var(--text-primary); background:var(--page);
+    min-height:100vh; padding:22px clamp(14px,3vw,40px) 60px; line-height:1.5;
+    --cell:106px; --lab:150px; --gap:12px;
+  }
+  header{display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:16px}
+  h1{font-size:20px; margin:0 0 4px; font-weight:650; letter-spacing:-.01em}
+  h1 .sub{font-size:13px; font-weight:500; color:var(--text-secondary); margin-left:8px}
+  .tag{margin:0; color:var(--text-secondary); font-size:13.5px; max-width:70ch}
+  code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.86em;
+    background:var(--chip-bg); padding:.06em .35em; border-radius:5px}
+  h1 .sub, .tag b{color:var(--text-primary)}
+
+  .btn{font:inherit; font-size:13px; padding:7px 12px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--border); background:var(--surface-1); color:var(--text-primary)}
+  .btn:hover{border-color:var(--baseline)}
+  .btn:disabled{opacity:.4; cursor:default}
+  .btn.ghost{background:transparent}
+
+  .controls{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px}
+  .stepline{margin-left:6px; display:flex; align-items:baseline; gap:10px}
+  #stepno{font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
+  .stepline .title{font-size:14px; font-weight:600}
+  .statusbar{font-size:12px; color:var(--text-secondary); font-variant-numeric:tabular-nums;
+    margin:2px 0 14px; display:flex; gap:16px; flex-wrap:wrap}
+  .statusbar b{color:var(--text-primary)}
+
+  .stagewrap{overflow-x:auto; padding-bottom:6px}
+  .board{position:relative; width:max-content; min-width:100%;
+    background:var(--surface-1); border:1px solid var(--border); border-radius:14px;
+    padding:20px 22px 22px}
+  .row{display:grid; grid-template-columns:var(--lab) repeat(4,var(--cell)); gap:var(--gap); align-items:stretch}
+  .row.slots{margin-bottom:76px}
+  .row.items{margin-bottom:12px}
+  .rowlabel{display:flex; flex-direction:column; justify-content:center; align-items:flex-end;
+    text-align:right; padding-right:10px}
+  .rl-main{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; font-weight:650}
+  .rl-sub{font-size:10.5px; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); margin-top:2px}
+
+  .cell{position:relative; border:1px solid var(--baseline); border-radius:10px;
+    background:var(--surface-1); min-height:66px; padding:7px 8px}
+  .cell .idx{position:absolute; top:4px; right:7px; font-size:10px; color:var(--muted);
+    font-variant-numeric:tabular-nums}
+
+  /* slots */
+  .slot{border-left:4px solid var(--baseline)}
+  .slot.live{border-left-color:var(--accent, var(--baseline))}
+  .slot.free{border-style:dashed; background:color-mix(in srgb, var(--muted) 7%, var(--surface-1))}
+  .slot.retired{background:repeating-linear-gradient(45deg,transparent,transparent 5px,var(--grid) 5px,var(--grid) 7px)}
+  .slot.removing{border-color:var(--reverse); border-left-color:var(--reverse); box-shadow:0 0 0 2px color-mix(in srgb,var(--reverse) 35%,transparent)}
+  .slot.patched{box-shadow:0 0 0 2px color-mix(in srgb,var(--item-C) 45%,transparent)}
+  .slot-hd{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px; font-weight:650; margin-bottom:5px}
+  .slot-hd .badge{font-size:9.5px; font-weight:600; color:var(--surface-1); background:var(--muted);
+    border-radius:4px; padding:0 4px; margin-left:4px; vertical-align:1px; letter-spacing:.02em}
+  .slot-body{display:flex; flex-direction:column; gap:1px; font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:11.5px; color:var(--text-secondary); font-variant-numeric:tabular-nums}
+  .slot-body .gen{color:var(--text-primary); font-weight:600}
+  .slot-body .gen.hot{color:var(--reverse)}
+  .slot-tag{position:absolute; bottom:5px; right:8px; font-size:9.5px; letter-spacing:.04em;
+    text-transform:uppercase; color:var(--muted)}
+
+  /* items */
+  .item{display:flex; flex-direction:column; align-items:center; justify-content:center;
+    border-left:4px solid transparent}
+  .item.filled{border-color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,var(--surface-1))}
+  .item .val{font-size:22px; font-weight:650; line-height:1; font-variant-numeric:tabular-nums}
+  .item .idlab{font-size:11px; font-weight:600; color:var(--accent); margin-top:3px}
+  .item .ph{font-size:20px; color:var(--muted)}
+  .item.empty{border-style:dashed; border-color:var(--grid)}
+  .cell.dim{opacity:.42}
+
+  /* dense_to_slot */
+  .dts{display:flex; align-items:center; justify-content:center; min-height:44px;
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px; font-weight:600;
+    border-left:4px solid transparent}
+  .dts.filled{border-color:var(--accent); color:var(--text-primary)}
+  .dts.empty{color:var(--muted); border-style:dashed; border-color:var(--grid)}
+
+  .resolvehi{outline:2px solid var(--accent); outline-offset:1px}
+  .stalehi{outline:2px solid var(--stale); outline-offset:1px; animation:shake .4s}
+  @keyframes shake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+  .flash{animation:flash 1.1s ease-out}
+  @keyframes flash{from{background:color-mix(in srgb,var(--item-A) 30%,var(--surface-1))}}
+
+  svg.arrows{position:absolute; inset:0; pointer-events:none; overflow:visible}
+  .arrow{fill:none}
+  .arrow.pulse{animation:pw 1.2s ease-in-out infinite}
+  @keyframes pw{50%{opacity:.45}}
+
+  .narr{margin:16px 0 4px; font-size:14.5px; color:var(--text-primary); max-width:82ch}
+  .narr b{font-weight:650}
+  .narr code{font-size:.85em}
+
+  .panel{margin-top:18px}
+  .panel h2{font-size:13px; font-weight:600; margin:0 0 8px; color:var(--text-secondary)}
+  .panel h2 .hint{font-weight:400; color:var(--muted); margin-left:6px; font-size:12px}
+  .chips{display:flex; gap:8px; flex-wrap:wrap}
+  .chip{display:inline-flex; align-items:center; gap:7px; font:inherit; font-size:12.5px;
+    padding:6px 10px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--border); background:var(--surface-1); color:var(--text-primary)}
+  .chip .dot{width:10px; height:10px; border-radius:50%; background:var(--accent); flex:none}
+  .chip .cc{color:var(--muted); font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px}
+  .chip .cs{font-weight:600; font-family:ui-monospace,Menlo,Consolas,monospace}
+  .chip.live .cs{color:var(--ok)}
+  .chip.stale{opacity:.72}
+  .chip.stale .cs{color:var(--stale)}
+  .chip.sel{border-color:var(--accent); box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 30%,transparent)}
+  .verdict{margin-top:9px; min-height:20px; font-size:13px; color:var(--text-secondary);
+    font-family:ui-monospace,Menlo,Consolas,monospace}
+  .verdict .ok{color:var(--ok); font-weight:600}
+  .verdict .stale{color:var(--stale); font-weight:600}
+
+  .legend{margin-top:20px; display:flex; gap:18px 22px; flex-wrap:wrap; font-size:12px; color:var(--text-secondary)}
+  .legend .li{display:inline-flex; align-items:center; gap:7px}
+  .sw{width:22px; height:0; border-top:2.5px solid currentColor}
+  .sw.rev{border-top-style:dashed; color:var(--reverse)}
+  .sw.fwd{color:var(--item-A)}
+  .box{width:14px; height:14px; border-radius:4px; border:1px solid var(--baseline)}
+  .box.free{border-style:dashed; background:color-mix(in srgb,var(--muted) 7%,var(--surface-1))}
+  .box.retired{background:repeating-linear-gradient(45deg,transparent,transparent 3px,var(--grid) 3px,var(--grid) 5px)}
+
+  footer{margin-top:26px; font-size:11.5px; color:var(--muted); max-width:88ch; line-height:1.6}
+  footer code{font-size:.9em}
+
+  @media (prefers-reduced-motion: reduce){
+    .arrow.pulse,.flash,.stalehi{animation:none}
+  }
+</style>
+</head>
+<body>
+<div class="app viz-root">
+  <header>
+    <div>
+      <h1>Generational handle pool<span class="sub">packed + index-table layout</span></h1>
+      <p class="tag">Watch <b>slot space</b> (stable, = <code>handle.index</code>) and <b>dense space</b> (volatile, physical seat) diverge — and why <code>dense_to_slot</code> has to exist. Teaching aid for lesson&nbsp;m03-02.</p>
+    </div>
+    <button id="theme" class="btn ghost" aria-label="Toggle light/dark theme">◐&nbsp;Theme</button>
+  </header>
+
+  <div class="controls">
+    <button id="prev" class="btn">◀ Prev</button>
+    <button id="play" class="btn">▶ Play</button>
+    <button id="next" class="btn">Next ▶</button>
+    <button id="reset" class="btn ghost">⟲ Reset</button>
+    <div class="stepline"><span id="stepno"></span><span class="title" id="steptitle"></span></div>
+  </div>
+  <div class="statusbar" id="statusbar"></div>
+
+  <div class="stagewrap">
+    <div class="board" id="board">
+      <div class="row slots" id="rowSlots"></div>
+      <div class="row items" id="rowItems"></div>
+      <div class="row dts" id="rowDts"></div>
+      <svg class="arrows" id="arrows" aria-hidden="true"></svg>
+    </div>
+  </div>
+
+  <div class="narr" id="narr"></div>
+
+  <div class="panel handles">
+    <h2>Handles issued<span class="hint">click one to resolve it against the current state</span></h2>
+    <div class="chips" id="chips"></div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <div class="legend">
+    <span class="li"><span class="sw fwd"></span> forward: <code>slots[s].dense_idx</code> → seat</span>
+    <span class="li"><span class="sw rev"></span> reverse: <code>dense_to_slot[d]</code> → owner slot</span>
+    <span class="li"><span class="box"></span> live slot</span>
+    <span class="li"><span class="box free"></span> free (on freelist)</span>
+    <span class="li"><span class="box retired"></span> retired (gen wrapped)</span>
+    <span class="li">arrow colour = item identity · a <b>crossing</b> = spaces diverged</span>
+  </div>
+
+  <footer>
+    Design: packed array + index table with swap-with-last delete — Bitsquid's ID lookup table [BITSQUID], expressed in Odin per Zylinski [ZYL-HANDLES]; index+generation handles and stale detection per floooh [FLOOOH]. Every state shown is generated from the agreed contract in <code>design.md</code>; colours validated for CVD and light/dark contrast (dataviz). Scratch/teaching artifact for <code>katas/handle_pool</code> — safe to delete.
+  </footer>
+</div>
+
+<script>
+const STEPS = [{"phase":"init","title":"init(capacity = 4)","narr":"Three arrays, capacity 4. <b>slots[]</b> is indexed by <b>slot index</b> — the stable name carried in a handle; every slot starts at <code>gen 1</code> and is threaded onto the FIFO freelist <code>0→1→2→3</code>. <b>items[]</b> and <b>dense_to_slot[]</b> are indexed by <b>dense position</b> (the physical seat) and start empty.","cap":4,"count":0,"items":[null,null,null,null],"slots":[{"gen":1,"dense_idx":0,"next":1,"retired":false,"free":true},{"gen":1,"dense_idx":1,"next":2,"retired":false,"free":true},{"gen":1,"dense_idx":2,"next":3,"retired":false,"free":true},{"gen":1,"dense_idx":3,"next":-1,"retired":false,"free":true}],"dts":[null,null,null,null],"free_head":0,"free_tail":3,"handles":[],"focus":null,"resolve":null},{"phase":"add","title":"add(10) → handle A","narr":"Dequeue <code>free_head = 0</code>. The item goes to the end of the dense region, <code>items[count] = items[0]</code>. Wire <b>both directions</b>: <code>slots[0].dense_idx = 0</code> (slot → seat) and <code>dense_to_slot[0] = 0</code> (seat → slot). Handle <b>A = (slot 0, gen 1)</b>.","cap":4,"count":1,"items":[{"val":10,"id":"A"},null,null,null],"slots":[{"gen":1,"dense_idx":0,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":1,"next":2,"retired":false,"free":true},{"gen":1,"dense_idx":2,"next":3,"retired":false,"free":true},{"gen":1,"dense_idx":3,"next":-1,"retired":false,"free":true}],"dts":[0,null,null,null],"free_head":1,"free_tail":3,"handles":[{"name":"A","slot":0,"gen":1,"id":"A","live":true,"densePos":0,"val":10}],"focus":{"addedSlot":0,"densePos":0},"resolve":null},{"phase":"add","title":"add(20) → handle B","narr":"Same with <code>free_head = 1</code>: item → <code>items[1]</code>, <code>slots[1].dense_idx = 1</code>, <code>dense_to_slot[1] = 1</code>. Handle <b>B = (slot 1, gen 1)</b>.","cap":4,"count":2,"items":[{"val":10,"id":"A"},{"val":20,"id":"B"},null,null],"slots":[{"gen":1,"dense_idx":0,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":1,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":2,"next":3,"retired":false,"free":true},{"gen":1,"dense_idx":3,"next":-1,"retired":false,"free":true}],"dts":[0,1,null,null],"free_head":2,"free_tail":3,"handles":[{"name":"A","slot":0,"gen":1,"id":"A","live":true,"densePos":0,"val":10},{"name":"B","slot":1,"gen":1,"id":"B","live":true,"densePos":1,"val":20}],"focus":{"addedSlot":1,"densePos":1},"resolve":null},{"phase":"add","title":"add(30) → handle C","narr":"Handle <b>C = (slot 2, gen 1)</b>. Every arrow is straight: <b>slot index == dense position</b> for all three items. The two arrays look redundant — and while you only <i>add</i>, they are. A <b>remove</b> is what pulls the two coordinate spaces apart.","cap":4,"count":3,"items":[{"val":10,"id":"A"},{"val":20,"id":"B"},{"val":30,"id":"C"},null],"slots":[{"gen":1,"dense_idx":0,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":1,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":2,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":3,"next":-1,"retired":false,"free":true}],"dts":[0,1,2,null],"free_head":3,"free_tail":3,"handles":[{"name":"A","slot":0,"gen":1,"id":"A","live":true,"densePos":0,"val":10},{"name":"B","slot":1,"gen":1,"id":"B","live":true,"densePos":1,"val":20},{"name":"C","slot":2,"gen":1,"id":"C","live":true,"densePos":2,"val":30}],"focus":{"addedSlot":2,"densePos":2},"resolve":null},{"phase":"remove-swap","title":"remove(A) — swap-with-last, then patch via the reverse map","narr":"Remove <b>A = (slot 0, gen 1)</b>. A's seat is <code>slots[0].dense_idx = 0</code> — the hole. To keep items dense, move the <b>last</b> live item (<code>items[count-1] = items[2]</code> = <b>C</b>) into the hole. But C's record still claims seat 2 — a lie now. <b>Which slot owns the moved item?</b> The forward map can't say in O(1); the reverse map can: <code>dense_to_slot[2] = 2</code>. So patch <code>slots[2].dense_idx = 0</code> and <code>dense_to_slot[0] = 2</code>. <b>That lookup is the only reason dense_to_slot exists.</b>","cap":4,"count":2,"items":[{"val":30,"id":"C"},{"val":20,"id":"B"},null,null],"slots":[{"gen":1,"dense_idx":0,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":1,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":0,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":3,"next":-1,"retired":false,"free":true}],"dts":[2,1,null,null],"free_head":3,"free_tail":3,"handles":[{"name":"A","slot":0,"gen":1,"id":"A","live":true,"densePos":0,"val":30},{"name":"B","slot":1,"gen":1,"id":"B","live":true,"densePos":1,"val":20},{"name":"C","slot":2,"gen":1,"id":"C","live":true,"densePos":0,"val":30}],"focus":{"removingSlot":0,"hole":0,"last":2,"movedSlot":2},"resolve":null},{"phase":"remove-free","title":"remove(A) — free the slot (generation bump)","narr":"Free slot 0: bump <code>gen 1 → 2</code> — had it wrapped to 0, the slot would be <b>retired</b> and never reused — and FIFO-enqueue it at the freelist <i>tail</i>. <code>count → 2</code>. That bumped generation is exactly what makes any handle still holding <code>(slot 0, gen 1)</code> stale.","cap":4,"count":2,"items":[{"val":30,"id":"C"},{"val":20,"id":"B"},null,null],"slots":[{"gen":2,"dense_idx":0,"next":-1,"retired":false,"free":true},{"gen":1,"dense_idx":1,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":0,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":3,"next":0,"retired":false,"free":true}],"dts":[2,1,null,null],"free_head":3,"free_tail":0,"handles":[{"name":"A","slot":0,"gen":1,"id":"A","live":false,"densePos":null,"val":null},{"name":"B","slot":1,"gen":1,"id":"B","live":true,"densePos":1,"val":20},{"name":"C","slot":2,"gen":1,"id":"C","live":true,"densePos":0,"val":30}],"focus":{"freedSlot":0,"retired":false,"gen":2},"resolve":null},{"phase":"resolve","title":"resolve handle C","narr":"Handle <b>C = (slot 2, gen 1)</b>. Check <code>slots[2].gen (1) == 1</code> ✓, then follow <code>dense_idx = 0</code> → <code>items[0] = 30</code>. C resolves correctly <i>even though its item physically moved</i>. Its arrow now <b>crosses</b> B's — slot space and dense space have diverged.","cap":4,"count":2,"items":[{"val":30,"id":"C"},{"val":20,"id":"B"},null,null],"slots":[{"gen":2,"dense_idx":0,"next":-1,"retired":false,"free":true},{"gen":1,"dense_idx":1,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":0,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":3,"next":0,"retired":false,"free":true}],"dts":[2,1,null,null],"free_head":3,"free_tail":0,"handles":[{"name":"A","slot":0,"gen":1,"id":"A","live":false,"densePos":null,"val":null},{"name":"B","slot":1,"gen":1,"id":"B","live":true,"densePos":1,"val":20},{"name":"C","slot":2,"gen":1,"id":"C","live":true,"densePos":0,"val":30}],"focus":null,"resolve":{"name":"C","slot":2,"gen":1,"ok":true,"densePos":0,"val":30,"reason":"slots[2].gen (1) == handle.gen (1) → items[0] = 30","id":"C"}},{"phase":"resolve","title":"resolve handle A","narr":"Handle <b>A = (slot 0, gen 1)</b>. <code>slots[0].gen</code> is now <b>2</b> ≠ 1 → <b>stale</b>. Use-after-free became a clean <code>.Invalid_Handle</code> instead of a silently wrong object.","cap":4,"count":2,"items":[{"val":30,"id":"C"},{"val":20,"id":"B"},null,null],"slots":[{"gen":2,"dense_idx":0,"next":-1,"retired":false,"free":true},{"gen":1,"dense_idx":1,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":0,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":3,"next":0,"retired":false,"free":true}],"dts":[2,1,null,null],"free_head":3,"free_tail":0,"handles":[{"name":"A","slot":0,"gen":1,"id":"A","live":false,"densePos":null,"val":null},{"name":"B","slot":1,"gen":1,"id":"B","live":true,"densePos":1,"val":20},{"name":"C","slot":2,"gen":1,"id":"C","live":true,"densePos":0,"val":30}],"focus":null,"resolve":{"name":"A","slot":0,"gen":1,"ok":false,"densePos":null,"val":null,"reason":"slots[0].gen (2) ≠ handle.gen (1) → stale","id":"A"}},{"phase":"add","title":"add(40) → handle D (reuses slot 3, FIFO)","narr":"The freelist was <code>[3, 0]</code> — slot 0 went to the <i>back</i>. FIFO hands out <b>slot 3</b> first. Item → <code>items[count] = items[2]</code>; <code>slots[3].dense_idx = 2</code>, <code>dense_to_slot[2] = 3</code>. Handle <b>D = (slot 3, gen 1)</b>.","cap":4,"count":3,"items":[{"val":30,"id":"C"},{"val":20,"id":"B"},{"val":40,"id":"D"},null],"slots":[{"gen":2,"dense_idx":0,"next":-1,"retired":false,"free":true},{"gen":1,"dense_idx":1,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":0,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":2,"next":-1,"retired":false,"free":false}],"dts":[2,1,3,null],"free_head":0,"free_tail":0,"handles":[{"name":"A","slot":0,"gen":1,"id":"A","live":false,"densePos":null,"val":null},{"name":"B","slot":1,"gen":1,"id":"B","live":true,"densePos":1,"val":20},{"name":"C","slot":2,"gen":1,"id":"C","live":true,"densePos":0,"val":30},{"name":"D","slot":3,"gen":1,"id":"D","live":true,"densePos":2,"val":40}],"focus":{"addedSlot":3,"densePos":2},"resolve":null},{"phase":"add","title":"add(50) → handle E (reuses slot 0, now gen 2)","narr":"Now the freelist head is <b>slot 0</b>, reused for the first time — and its generation is already <b>2</b>. Item → <code>items[3]</code>; handle <b>E = (slot 0, gen 2)</b>. Slot 0 is live again.","cap":4,"count":4,"items":[{"val":30,"id":"C"},{"val":20,"id":"B"},{"val":40,"id":"D"},{"val":50,"id":"E"}],"slots":[{"gen":2,"dense_idx":3,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":1,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":0,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":2,"next":-1,"retired":false,"free":false}],"dts":[2,1,3,0],"free_head":-1,"free_tail":-1,"handles":[{"name":"A","slot":0,"gen":1,"id":"A","live":false,"densePos":null,"val":null},{"name":"B","slot":1,"gen":1,"id":"B","live":true,"densePos":1,"val":20},{"name":"C","slot":2,"gen":1,"id":"C","live":true,"densePos":0,"val":30},{"name":"D","slot":3,"gen":1,"id":"D","live":true,"densePos":2,"val":40},{"name":"E","slot":0,"gen":2,"id":"E","live":true,"densePos":3,"val":50}],"focus":{"addedSlot":0,"densePos":3},"resolve":null},{"phase":"resolve","title":"resolve handle A again","narr":"Handle <b>A</b> is still <code>(slot 0, gen 1)</code>. Slot 0 is alive again — but as <b>E</b>, at <code>gen 2</code>. <code>slots[0].gen (2) ≠ 1</code> → A is <b>still stale</b>. The <i>generation</i>, not the slot, is the identity guard.","cap":4,"count":4,"items":[{"val":30,"id":"C"},{"val":20,"id":"B"},{"val":40,"id":"D"},{"val":50,"id":"E"}],"slots":[{"gen":2,"dense_idx":3,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":1,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":0,"next":-1,"retired":false,"free":false},{"gen":1,"dense_idx":2,"next":-1,"retired":false,"free":false}],"dts":[2,1,3,0],"free_head":-1,"free_tail":-1,"handles":[{"name":"A","slot":0,"gen":1,"id":"A","live":false,"densePos":null,"val":null},{"name":"B","slot":1,"gen":1,"id":"B","live":true,"densePos":1,"val":20},{"name":"C","slot":2,"gen":1,"id":"C","live":true,"densePos":0,"val":30},{"name":"D","slot":3,"gen":1,"id":"D","live":true,"densePos":2,"val":40},{"name":"E","slot":0,"gen":2,"id":"E","live":true,"densePos":3,"val":50}],"focus":null,"resolve":{"name":"A","slot":0,"gen":1,"ok":false,"densePos":null,"val":null,"reason":"slots[0].gen (2) ≠ handle.gen (1) → stale","id":"A"}}];
+
+const $ = id => document.getElementById(id);
+const board=$("board"), rowSlots=$("rowSlots"), rowItems=$("rowItems"), rowDts=$("rowDts"), arrows=$("arrows");
+const prevBtn=$("prev"), nextBtn=$("next"), playBtn=$("play"), resetBtn=$("reset");
+const N = STEPS.length;
+let cur = 0, timer = null;
+
+const SENT = -1;
+const sChar = n => n === SENT ? "∅" : n;
+const diff = (a,b) => JSON.stringify(a) !== JSON.stringify(b);
+const slotCell = s => rowSlots.children[s+1];
+const itemCell = d => rowItems.children[d+1];
+const dtsCell  = d => rowDts.children[d+1];
+
+const DEFS = '<defs><marker id="ah" markerWidth="10" markerHeight="10" refX="7.5" refY="4.5" orient="auto">'
+  + '<path d="M1,1 L8.5,4.5 L1,8 z" fill="context-stroke"/></marker></defs>';
+
+function buildSlots(st, prev){
+  const out = ['<div class="rowlabel"><span class="rl-main">slots[]</span><span class="rl-sub">slot space</span></div>'];
+  for(let s=0; s<st.cap; s++){
+    const sl = st.slots[s];
+    const live = !sl.free && !sl.retired;
+    const removing = st.focus && st.focus.removingSlot === s;
+    let cls = "cell slot " + (sl.retired ? "retired" : sl.free ? "free" : "live");
+    if(removing) cls += " removing";
+    if(st.focus && st.focus.movedSlot === s && st.phase === "remove-swap") cls += " patched";
+    if(prev && diff(prev.slots[s], sl)) cls += " flash";
+    let accent = "";
+    if(live){ const it = st.items[sl.dense_idx]; if(it) accent = ' style="--accent:var(--item-'+it.id+')"'; }
+    const genHot = prev && prev.slots[s].gen !== sl.gen ? " hot" : "";
+    const dTxt = (live || removing) ? sl.dense_idx : "·";
+    const nTxt = (sl.free || sl.retired) ? sChar(sl.next) : "—";
+    let badge = "";
+    if(s === st.free_head) badge += '<span class="badge">head</span>';
+    if(s === st.free_tail) badge += '<span class="badge">tail</span>';
+    out.push('<div class="'+cls+'"'+accent+'>'
+      + '<div class="slot-hd">slot '+s+badge+'</div>'
+      + '<div class="slot-body">'
+      +   '<span class="gen'+genHot+'">gen '+sl.gen+'</span>'
+      +   '<span class="d">dense_idx '+dTxt+'</span>'
+      +   '<span class="nx">next '+nTxt+'</span>'
+      + '</div>'
+      + '<div class="slot-tag">'+(sl.retired?"retired":sl.free?"free":"live")+'</div>'
+      + '</div>');
+  }
+  rowSlots.innerHTML = out.join("");
+}
+
+function buildItems(st, prev){
+  const out = ['<div class="rowlabel"><span class="rl-main">items[]</span><span class="rl-sub">dense space</span></div>'];
+  for(let d=0; d<st.cap; d++){
+    const it = st.items[d];
+    let cls = "cell item " + (it ? "filled" : "empty");
+    if(d >= st.count) cls += " dim";
+    if(prev && diff(prev.items[d], it)) cls += " flash";
+    const accent = it ? ' style="--accent:var(--item-'+it.id+')"' : "";
+    const body = it ? '<div class="val">'+it.val+'</div><div class="idlab">'+it.id+'</div>' : '<div class="ph">·</div>';
+    out.push('<div class="'+cls+'"'+accent+'><div class="idx">'+d+'</div>'+body+'</div>');
+  }
+  rowItems.innerHTML = out.join("");
+}
+
+function buildDts(st, prev){
+  const out = ['<div class="rowlabel"><span class="rl-main">dense_to_slot[]</span><span class="rl-sub">seat → owner</span></div>'];
+  for(let d=0; d<st.cap; d++){
+    const v = st.dts[d], it = st.items[d];
+    let cls = "cell dts " + (v === null ? "empty" : "filled");
+    if(d >= st.count) cls += " dim";
+    if(prev && diff(prev.dts[d], v)) cls += " flash";
+    const accent = it ? ' style="--accent:var(--item-'+it.id+')"' : "";
+    out.push('<div class="'+cls+'"'+accent+'><div class="idx">'+d+'</div>'+(v===null?"·":"→ s"+v)+'</div>');
+  }
+  rowDts.innerHTML = out.join("");
+}
+
+function buildChips(st){
+  const c = $("chips");
+  c.innerHTML = st.handles.map(h =>
+    '<button class="chip '+(h.live?"live":"stale")+'" data-h="'+h.name+'" style="--accent:var(--item-'+h.id+')">'
+    + '<span class="dot"></span><span class="cn">'+h.name+'</span>'
+    + '<span class="cc">(s'+h.slot+', g'+h.gen+')</span>'
+    + '<span class="cs">'+(h.live?"→ "+h.val:"stale")+'</span></button>'
+  ).join("");
+  c.querySelectorAll(".chip").forEach(b => b.onclick = () => resolve(st, b.dataset.h));
+  $("verdict").innerHTML = "";
+}
+
+function center(cell, edge){
+  const b = board.getBoundingClientRect(), r = cell.getBoundingClientRect();
+  return { x: r.left - b.left + r.width/2, y: (edge === "top" ? r.top : r.bottom) - b.top };
+}
+function pathEl(p0, p1, color, w, dash){
+  const dy = Math.abs(p1.y - p0.y), c = Math.max(26, dy*0.45), up = p1.y < p0.y;
+  const el = document.createElementNS("http://www.w3.org/2000/svg","path");
+  el.setAttribute("d", "M "+p0.x+" "+p0.y+" C "+p0.x+" "+(p0.y+(up?-c:c))+", "+p1.x+" "+(p1.y+(up?c:-c))+", "+p1.x+" "+p1.y);
+  el.setAttribute("stroke", color); el.setAttribute("stroke-width", w);
+  el.setAttribute("fill","none"); el.setAttribute("stroke-linecap","round");
+  el.setAttribute("marker-end","url(#ah)");
+  if(dash) el.setAttribute("stroke-dasharray","6 5");
+  el.setAttribute("class","arrow");
+  return el;
+}
+function drawArrows(st){
+  const b = board.getBoundingClientRect();
+  arrows.setAttribute("width", b.width); arrows.setAttribute("height", b.height);
+  arrows.setAttribute("viewBox", "0 0 "+b.width+" "+b.height);
+  arrows.innerHTML = DEFS;
+  for(let s=0; s<st.cap; s++){
+    const sl = st.slots[s], live = !sl.free && !sl.retired;
+    const removing = st.focus && st.focus.removingSlot === s;
+    if(!live || removing) continue;
+    const it = st.items[sl.dense_idx];
+    if(!it) continue;
+    arrows.appendChild(pathEl(center(slotCell(s),"bottom"), center(itemCell(sl.dense_idx),"top"), "var(--item-"+it.id+")", 2.5, false));
+  }
+  if(st.phase === "remove-swap" && st.focus && st.focus.movedSlot != null){
+    const a = pathEl(center(dtsCell(st.focus.hole),"top"), center(slotCell(st.focus.movedSlot),"bottom"), "var(--reverse)", 2.5, true);
+    arrows.appendChild(a);
+  }
+}
+function resolve(st, name){
+  const h = st.handles.find(x => x.name === name);
+  document.querySelectorAll(".chip").forEach(c => c.classList.toggle("sel", c.dataset.h === name));
+  document.querySelectorAll(".resolvehi,.stalehi").forEach(e => e.classList.remove("resolvehi","stalehi"));
+  arrows.querySelectorAll(".pulse").forEach(e => e.remove());
+  const v = $("verdict");
+  if(h.live){
+    v.innerHTML = "<b>"+name+"</b> = (slot "+h.slot+", gen "+h.gen+") → <span class='ok'>slots["+h.slot+"].gen matches</span> → follow dense_idx → items["+h.densePos+"] = <b>"+h.val+"</b>";
+    const p = pathEl(center(slotCell(h.slot),"bottom"), center(itemCell(h.densePos),"top"), "var(--item-"+h.id+")", 5, false);
+    p.classList.add("pulse"); arrows.appendChild(p);
+    slotCell(h.slot).classList.add("resolvehi"); itemCell(h.densePos).classList.add("resolvehi");
+  } else {
+    v.innerHTML = "<b>"+name+"</b> = (slot "+h.slot+", gen "+h.gen+") → <span class='stale'>slots["+h.slot+"].gen ≠ "+h.gen+": STALE</span> → .Invalid_Handle";
+    slotCell(h.slot).classList.add("stalehi");
+  }
+}
+
+function render(i){
+  cur = Math.max(0, Math.min(N-1, i));
+  const st = STEPS[cur], prev = cur > 0 ? STEPS[cur-1] : null;
+  $("stepno").textContent = "Step "+(cur+1)+" / "+N;
+  $("steptitle").innerHTML = st.title;
+  $("narr").innerHTML = st.narr;
+  $("statusbar").innerHTML = "<span>count <b>"+st.count+"</b></span><span>free_head <b>"+sChar(st.free_head)
+    +"</b></span><span>free_tail <b>"+sChar(st.free_tail)+"</b></span><span>capacity <b>"+st.cap+"</b></span>";
+  buildSlots(st, prev); buildItems(st, prev); buildDts(st, prev); buildChips(st);
+  prevBtn.disabled = cur === 0; nextBtn.disabled = cur === N-1;
+  requestAnimationFrame(() => { drawArrows(st); if(st.resolve) resolve(st, st.resolve.name); });
+}
+
+function stopPlay(){ if(timer){ clearInterval(timer); timer = null; playBtn.textContent = "▶ Play"; } }
+function startPlay(){
+  if(cur === N-1) render(0);
+  playBtn.textContent = "❚❚ Pause";
+  timer = setInterval(() => { if(cur === N-1) stopPlay(); else render(cur+1); }, 2400);
+}
+prevBtn.onclick = () => { stopPlay(); render(cur-1); };
+nextBtn.onclick = () => { stopPlay(); render(cur+1); };
+resetBtn.onclick = () => { stopPlay(); render(0); };
+playBtn.onclick = () => timer ? stopPlay() : startPlay();
+addEventListener("keydown", e => {
+  if(e.key === "ArrowRight"){ stopPlay(); render(cur+1); }
+  else if(e.key === "ArrowLeft"){ stopPlay(); render(cur-1); }
+});
+let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => drawArrows(STEPS[cur]), 80); });
+
+const rootEl = document.documentElement;
+try { const t = localStorage.getItem("hpviz-theme"); if(t) rootEl.dataset.theme = t; } catch(e){}
+$("theme").onclick = () => {
+  const eff = rootEl.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const next = eff === "dark" ? "light" : "dark";
+  rootEl.dataset.theme = next;
+  try { localStorage.setItem("hpviz-theme", next); } catch(e){}
+  requestAnimationFrame(() => drawArrows(STEPS[cur]));
+};
+
+render(0);
+</script>
+</body>
+</html>

@@ -22,7 +22,7 @@
 # Locked modules may be amended at milestone retrospectives (see PLAN.md);
 # `done` history is never rewritten.
 
-active_change: lesson-m03-02-handle-pool
+active_change: null
 modules:
   # ── Phase 0 — Foundations ──────────────────────────────────────────────
   - id: m00
@@ -92,12 +92,12 @@ modules:
         slug: handle-pool
         title: The generational handle pool
         type: kata
-        status: active
+        status: done
       - id: m03-03
         slug: core-containers
         title: "Graduate: core containers package"
         type: build
-        status: locked
+        status: available
 
   # ── Phase 1 — Platform ─────────────────────────────────────────────────
   - id: m10
