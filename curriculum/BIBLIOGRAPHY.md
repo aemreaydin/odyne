@@ -102,6 +102,14 @@ Never reuse or rename a key once a lesson cites it.
 - **Verified:** 2026-06-12
 - **Notes:** Language semantics: defer, context, slices, parapoly, SOA — m00 and every C++-delta explanation.
 
+### ODIN-CONTAINER
+- **Title:** Odin package documentation — `core:container` packages
+- **Author:** Odin team (Ginger Bill et al.)
+- **Type:** docs
+- **Where:** https://pkg.odin-lang.org/core/container/queue/ · https://pkg.odin-lang.org/core/container/handle_map/
+- **Verified:** 2026-07-21
+- **Notes:** The stdlib's container shape — one sub-package per container (queue, small_array, priority_queue, handle_map, …) with unprefixed proc names; `handle_map` is a generational handle map generic over a caller-supplied `$Handle_Type` (structs with idx/gen fields, zero index reserved) — m03-03's packaging precedent and the in-stdlib reference for caller-typed handles. Cite as `[ODIN-CONTAINER handle_map]`.
+
 ### ODIN-MEM
 - **Title:** Odin package documentation — `base:runtime` allocator interface & `core:mem`
 - **Author:** Odin team (Ginger Bill et al.)

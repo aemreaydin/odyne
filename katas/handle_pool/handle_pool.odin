@@ -28,7 +28,7 @@ Handle :: distinct u64
 
 Handle_Error :: enum {
 	None,
-	Full,           // no free slot (all live or retired)
+	Full, // no free slot (all live or retired)
 	Invalid_Handle, // zero, stale, retired, or out-of-range
 }
 
@@ -41,12 +41,12 @@ Slot :: struct {
 }
 
 Handle_Pool :: struct($T: typeid) {
-	items:         []T,   // dense storage; [0:count) live — owned via `allocator`
+	items:         []T, // dense storage; [0:count) live — owned via `allocator`
 	dense_to_slot: []u32, // dense position → owning slot (remove's patch-up map)
 	slots:         []Slot,
 	count:         u32,
-	free_head:     u32,   // dequeue end (oldest freed slot) — FIFO per BITSQUID
-	free_tail:     u32,   // enqueue end
+	free_head:     u32, // dequeue end (oldest freed slot) — FIFO per BITSQUID
+	free_tail:     u32, // enqueue end
 	allocator:     mem.Allocator,
 }
 
@@ -54,7 +54,10 @@ Handle_Pool :: struct($T: typeid) {
 // threads the FIFO freelist 0→capacity-1, and sets every slot's generation to 1.
 // Asserts 0 < capacity < SENTINEL. The pool owns its arrays until destroy.
 init :: proc(p: ^Handle_Pool($T), capacity: int, allocator := context.allocator) {
-	assert(capacity > 0 && capacity < int(SENTINEL), "capacity must be greater than 0 and less than SENTINEL")
+	assert(
+		capacity > 0 && capacity < int(SENTINEL),
+		"capacity must be greater than 0 and less than SENTINEL",
+	)
 
 	p.items = make([]T, capacity, allocator)
 	p.dense_to_slot = make([]u32, capacity, allocator)
@@ -62,7 +65,7 @@ init :: proc(p: ^Handle_Pool($T), capacity: int, allocator := context.allocator)
 	p.count = 0
 	p.free_head = 0
 	p.free_tail = u32(capacity - 1)
-	for i in 0..<capacity {
+	for i in 0 ..< capacity {
 		p.slots[i].gen = 1
 		p.slots[i].dense_idx = u32(i)
 		p.slots[i].next = u32(i + 1)
@@ -85,7 +88,7 @@ destroy :: proc(p: ^Handle_Pool($T)) {
 clear :: proc(p: ^Handle_Pool($T)) {
 	p.free_head = 0
 	p.free_tail = u32(len(p.slots) - 1)
-	for i in 0..<p.count {
+	for i in 0 ..< p.count {
 		slot_idx := p.dense_to_slot[i]
 		increment_gen(&p.slots[slot_idx])
 	}
@@ -103,7 +106,7 @@ add :: proc(p: ^Handle_Pool($T), item: T) -> (Handle, Handle_Error) {
 	if p.free_head == SENTINEL {
 		return 0, .Full
 	}
-	
+
 	slot_idx := p.free_head
 	slot := &p.slots[slot_idx]
 	p.items[p.count] = item
@@ -187,7 +190,7 @@ slice :: proc(p: ^Handle_Pool($T)) -> []T {
 	return p.items[:p.count]
 }
 
-@(private="file")
+@(private = "file")
 increment_gen :: proc(slot: ^Slot) -> (overflow: bool) {
 	slot.gen, overflow = intrinsics.overflow_add(slot.gen, 1)
 	if overflow {
@@ -196,19 +199,19 @@ increment_gen :: proc(slot: ^Slot) -> (overflow: bool) {
 	return
 }
 
-@(private="file")
+@(private = "file")
 pack_handle :: proc(idx, gen: u32) -> Handle {
 	return Handle(u64(gen) << 32 | u64(idx))
 }
 
-@(private="file")
+@(private = "file")
 unpack_handle :: proc(h: Handle) -> (idx, gen: u32) {
 	idx = u32(h & 0xFFFF_FFFF)
 	gen = u32(h >> 32)
 	return
 }
 
-@(private="file")
+@(private = "file")
 resolve :: proc(p: ^Handle_Pool($T), h: Handle) -> (dense_idx: u32, ok: bool) {
 	slot_idx, gen := unpack_handle(h)
 	if int(slot_idx) >= len(p.items) || gen == 0 || gen != p.slots[slot_idx].gen {
@@ -217,3 +220,5 @@ resolve :: proc(p: ^Handle_Pool($T), h: Handle) -> (dense_idx: u32, ok: bool) {
 	}
 	return p.slots[slot_idx].dense_idx, true
 }
+
+

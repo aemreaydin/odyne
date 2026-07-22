@@ -2,6 +2,7 @@ package testbed
 
 import "core:fmt"
 import "core:mem"
+import "engine:core/containers/handle_pool"
 import "engine:core/memory"
 import "engine:game"
 
@@ -48,4 +49,49 @@ main :: proc() {
 		for i in 0 ..< len(bytes) {bytes[i] = 0xCC}
 		free(raw_data(bytes))
 	}
+
+	Texture :: struct {
+		handle: TextureHandle,
+		path:   string,
+	}
+	TextureHandle :: distinct handle_pool.Handle
+
+	tracking_allocator: mem.Tracking_Allocator
+	mem.tracking_allocator_init(&tracking_allocator, context.allocator)
+	context.allocator = mem.tracking_allocator(&tracking_allocator)
+	defer {
+		for _, e in tracking_allocator.allocation_map {
+			fmt.printfln("leak: %d bytes @ %v  (%v)", e.size, e.memory, e.location)
+		}
+		for b in tracking_allocator.bad_free_array {
+			fmt.printfln("bad free @ %v  (%v)", b.memory, b.location)
+		}
+		mem.tracking_allocator_destroy(&tracking_allocator)
+	}
+
+	hp: handle_pool.Handle_Pool(Texture, TextureHandle)
+	handle_pool.init(&hp, 10)
+	defer handle_pool.destroy(&hp)
+
+	ha, ha_err := handle_pool.add(&hp, Texture{path = "path/a"})
+	hb, _ := handle_pool.add(&hp, Texture{path = "path/b"})
+
+	a, _ := handle_pool.get(&hp, ha)
+	fmt.println(a.path)
+	b, _ := handle_pool.get(&hp, hb)
+	fmt.println(b.path)
+	b_ptr, _ := handle_pool.get_ptr(&hp, hb)
+	b_ptr.path = "path/b_ptr"
+	fmt.println(b_ptr.path)
+
+	for &item in handle_pool.slice(&hp) {
+		fmt.println(item.path)
+	}
+
+	_ = handle_pool.remove(&hp, ha)
+	a, ha_err = handle_pool.get(&hp, ha)
+	fmt.println(ha_err)
+
+	handle_pool.clear(&hp)
 }
+

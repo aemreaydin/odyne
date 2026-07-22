@@ -1,3 +1,4 @@
+#+private
 package memory
 
 // m02-04 graduate — conformance tests for the core-memory capability. These trace to the
@@ -141,7 +142,11 @@ test_logging_allocator_forwards :: proc(t: ^testing.T) {
 	lo := addr(raw_data(backing[:]))
 	hi := lo + uintptr(len(backing))
 	if len(b) == 32 {
-		testing.expect(t, addr(raw_data(b)) >= lo && addr(raw_data(b)) < hi, "logger forwards to the backing")
+		testing.expect(
+			t,
+			addr(raw_data(b)) >= lo && addr(raw_data(b)) < hi,
+			"logger forwards to the backing",
+		)
 	}
 	testing.expect(t, a.offset >= 32, "backing arena saw the allocation")
 }
@@ -159,3 +164,4 @@ test_pool_context_allocator :: proc(t: ^testing.T) {
 		testing.expect(t, a != b, "distinct objects get distinct blocks")
 	}
 }
+

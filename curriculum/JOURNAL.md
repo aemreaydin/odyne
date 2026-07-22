@@ -16,12 +16,61 @@ lesson's measurement task.
 
 ---
 
+## 2026-07-22 — lesson-m03-03: core-containers (graduate)
+
+- **Built:** `engine/core/containers/handle_pool/` (`package handle_pool`) — the m03-02 kata
+  graduated into the engine's core layer, with two learner-driven design amendments beyond a
+  straight move. (1) **Caller-typed handles:** `Handle_Pool($T, $HT)` with a compile-time
+  `where` contract — HT is 64-bit unsigned (distinct included), T embeds `handle: HT` — so each
+  system exposes its own distinct handle type and cross-system mixups are compile errors
+  (verified: violating instantiations fail with the condition named). (2) **Embedded handle
+  replaces `dense_to_slot`:** the pool went three arrays → two; `add` writes the issued handle
+  into the stored copy, `remove` patches the moved item's slot via its embedded handle
+  (Bitsquid's actual design, expressible generically via `type_has_field` — refuting m03-02's
+  "a generic container can't demand T carry its id"), `clear` sweeps live items' handles.
+  Packaging: one sub-package per container under `engine/core/containers/` (stdlib
+  `core:container` shape); kata's unprefixed names survive; ready-made `Handle` kept for
+  non-boundary pools; `Handle_Error` → `Error`. Second engine spec delta merged capability:
+  `core-containers`. 17 conformance tests (incl. add-sets-embedded-handle, ready-made Handle,
+  distinct-type coexistence, and clear-bumps-only-live — the review catch), green · leak-clean ·
+  vet/strict-style clean. Demo checkpoint: testbed exercises the pool through `engine:core`
+  under a heap-backed tracking allocator — stale refusal, loan mutation, self-identifying slice
+  walk, no leaks. Review findings, both fixed: F1 `clear` walked the full items array (ZII
+  entries over-bumped slot 0's generation ~capacity× per clear — pinned red first); F2 `init`
+  swallowed allocation failure (surfaced live as the demo's OOM crash-at-a-distance). `get_ptr`
+  now documents the pool-owned `handle` field (scribbling through the loan mispatches remove).
+  Bench harness: `katas/handle_pool_bench_engine/main.odin`.
+- **Measured:** (tutor-run · `odin run -o:speed` · N=100,000 × 32 B entity — kata's `id` filler
+  became the embedded handle, so sizes match · sums-checked · 3 runs)
+  - **The distinct-type tax is zero — measured, not asserted:** ready-made `hp.Handle` vs
+    `Bench_Handle :: distinct u64` instantiations, clean-run pair: add 2.58 vs 2.55 · remove
+    2.46 vs 2.29 · churn 4.29 vs 4.32 · resolve in-order 0.73 vs 0.81 · shuffled 2.91 vs 3.02 ·
+    half-stale 3.42 vs 3.54 · iterate 0.23/0.13 vs 0.24/0.13 ns — identical within noise.
+    `distinct` changes the type, not the code.
+  - **No regression vs the kata — several ops faster:** add ≈ 2.5 vs kata 4.5 ns · remove
+    ≈ 2.3 vs 3.0 · churn ≈ 3.7–4.3 vs 3.9 · resolve 0.73–0.95 / 2.9–3.9 vs 1.08 / 3.8 ·
+    stale-mix ≈ 3.4–3.6 vs 4.2 · iterate 0.23–0.24 / 0.13 vs 0.30 / 0.24. The add/remove gains
+    are directionally real: dropping `dense_to_slot` removed a third array from `add`'s write
+    stream, and `remove`'s patch now reads the moved item's cache line (already touched by the
+    swap) instead of a separate table. Caveats: cross-day machine state — carry direction, not
+    exact deltas; occasional 10–12 ns add spikes on whichever variant runs first are warm-up
+    noise (clean runs show parity).
+  - **Build cost:** `odin test` command 0.30 s wall (17 tests, 4.3 ms execution; m02-04: 10
+    tests, 4–9 ms). Testbed clean `-o:speed` build 1.30 s; binary **472,576 B** vs m02-04's
+    464,384 → **+8,192 B (+1.8%)** for the whole containers package (parapoly instantiations
+    are per-(T,HT), so this grows with distinct pool types used, not with capacity).
+- **Takeaways:** <!-- [you] review findings + probe answers worth keeping -->
+  Keeping the handle on the item as well made the algorithm much easier to reason about,
+  and cleaner.
+- **Reflections:** <!-- [you] your own words: what was hard, what clicked, open questions -->
+  Easier than the kata as a simple handle addition to the item made evrything easier.
+
 ## 2026-07-21 — lesson-m03-02: handle-pool (kata)
 
 - **Built:** `katas/handle_pool/` — the generational handle pool, a **packed array + index
   table** (Bitsquid's second design). `Handle_Pool($T){items (dense [0:count)), dense_to_slot,
-  slots, count, free_head/tail, allocator}`; `Slot{gen, dense_idx, next}`; `Handle :: distinct
-  u64` (low 32 slot index, high 32 generation; gens start at 1 so ZII `Handle(0)` never
+slots, count, free_head/tail, allocator}`; `Slot{gen, dense_idx, next}`; `Handle :: distinct
+u64` (low 32 slot index, high 32 generation; gens start at 1 so ZII `Handle(0)` never
   validates). Owned fixed-capacity storage via `init(capacity, allocator)` / `destroy`. `add`
   appends to the dense array and wires both maps; `remove` swap-with-lasts the last item into the
   gap, patches the moved item's slot through `dense_to_slot`, bumps the freed slot's generation
@@ -37,7 +86,7 @@ lesson's measurement task.
   - **Lifecycle beats the allocator-interface pool — the lesson's hypothesis, confirmed:** hp
     **add ≈ 4.5 ns/op**, **remove ≈ 3.0 ns/op** vs the m02-03 pool's 11.5 / 4.5; **add+remove
     churn ≈ 3.9 ns/cycle** vs pool **≈15** (**~3.7×**) and heap **≈40** (**~10×**). Dropping the
-    `Allocator_Proc` indirect call + 8-mode switch + interface dispatch — which *were* the m02
+    `Allocator_Proc` indirect call + 8-mode switch + interface dispatch — which _were_ the m02
     numbers — is worth ~4× on a direct-call container. (Churn beats the fill-`add` number because
     1-live-at-a-time stays L1-resident; the fill streams N×(32 B item + 12 B slot).)
   - **Resolve ≈ 2.6× the m03-01 scaffolding — the price of a real, safe API, not a bug:**
@@ -45,7 +94,7 @@ lesson's measurement task.
     delta is structural and expected: `resolve` does a range check + zero-gen check + the
     `get_ptr`→`resolve`→`unpack` call boundary the inlined scaffolding skipped, and `Slot` is
     **12 B** — the freelist `next` rides in the resolve-hot cache line — vs the scaffolding's 8 B.
-    The ~2.6× shows up in *both* orders → fixed per-visit overhead (safety + the fat slot), not a
+    The ~2.6× shows up in _both_ orders → fixed per-visit overhead (safety + the fat slot), not a
     cache pathology.
   - **Stale-mix ≈ 4.2 ns/visit (~half handles stale, storage order) — branches, not data:** ~4×
     the all-live in-order number despite near-identical memory access. The failed-check path is a
@@ -62,7 +111,7 @@ lesson's measurement task.
   compared to pointers. Packed array handle also makes it easier to iterate on hot loops
 - **Reflections:** <!-- [you] your own words: what was hard, what clicked, open questions -->
   This was the hardest one so far - I'm still having trouble wrapping my head around the structure with dense_to_slot sometimes but I'm glad I was able to implement.
-  
+
 ## 2026-07-19 — lesson-m03-01: handles (concept)
 
 - **Built:** No engine code (concept lesson). Lesson covers the referencing discipline
@@ -88,7 +137,7 @@ lesson's measurement task.
     under identical access patterns, handle indirection costs nothing measurable over raw
     pointers. Caveat: a fresh heap placed 100k same-size allocs compactly; a churned,
     long-lived heap scatters them — and these visits are independent loads the CPU can
-    overlap, where a real object *graph* chains dependent hops.
+    overlap, where a real object _graph_ chains dependent hops.
   - **(e) map lookup, shuffled ≈ 6.11 ns/visit (~24–30× a, ~4× the array designs)** —
     Bitsquid's "STL method is the slow one" verdict reproduced 15 years later against
     Odin's modern open-addressing map.
@@ -123,15 +172,16 @@ lesson's measurement task.
     ~15 ns/alloc and m02-03's ~11.5/4.5 ns alloc/free hold unchanged in-engine.
 - **Takeaways:** <!-- [you] review findings + probe answers worth keeping -->
   The package creation - library abstraction logic is different than C++ - more similar to C.\
-  One package that stores the memory code is the way I decided to go. I think in the future - or for 
+  One package that stores the memory code is the way I decided to go. I think in the future - or for
   bigger packages - this might be hard to maintain.
 - **Reflections:** <!-- [you] your own words: what was hard, what clicked, open questions -->
   Not a complex milestone - just moved code around. Logging allocator was a nice addition
+
 ## 2026-07-17 — lesson-m02-03: pool
 
 - **Built:** `katas/pool/` — the pool (fixed-size block) allocator implementing Odin's
   `Allocator_Proc`. `Pool{data (borrowed backing), block_size (effective stride), alignment,
-  head: ^Free_Node, free_count}`. Free blocks are tracked by an **intrusive singly-linked
+head: ^Free_Node, free_count}`. Free blocks are tracked by an **intrusive singly-linked
   free list** — the `next` link is overlaid on each free block's own bytes (no side metadata).
   Public: `init`, `allocator`, `allocator_proc`, `free_all`; public helpers `alloc`/`free_block`.
   init aligns the backing base once (re-slice off the padding), bumps block size to
@@ -191,7 +241,7 @@ lesson's measurement task.
 - **Reflections:** <!-- [you] your own words: what was hard, what clicked, open questions -->
   First time implementing an arena allocator - took longer than expected even though it's a relatively
   simple allocator. Getting used to how odin does things is the main challenge.
-  
+
 ## 2026-06-17 — lesson-m02-01: allocators (concept)
 
 - **Built:** No engine code (concept lesson). Lesson covers Odin's allocator model:

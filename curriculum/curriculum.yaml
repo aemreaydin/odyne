@@ -97,7 +97,7 @@ modules:
         slug: core-containers
         title: "Graduate: core containers package"
         type: build
-        status: available
+        status: done
 
   # ── Phase 1 — Platform ─────────────────────────────────────────────────
   - id: m10
@@ -109,7 +109,7 @@ modules:
         slug: win32-window
         title: A Win32 window
         type: build
-        status: locked
+        status: available
       - id: m10-02
         slug: input
         title: Keyboard & mouse input
