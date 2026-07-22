@@ -16,6 +16,48 @@ lesson's measurement task.
 
 ---
 
+## 2026-07-22 — lesson-m10-01: win32-window (build)
+
+- **Built:** `engine/platform/window.odin` + `window_windows.odin` — odyne's first OS boundary
+  and first visible artifact: a raw Win32 window (no middleware) behind a handle-based platform
+  API. Portable surface: `Window_Handle :: distinct u64`, ZII-friendly `Window_Desc`
+  (defaults "odyne"/1280×720/visible; `hidden` for headless tests), `init`/`shutdown`,
+  `create_window`/`destroy_window`, global non-blocking `poll_events` (`PeekMessageW` — Win32
+  queues are per-THREAD; windows have thread affinity to their creator), and state queries
+  `is_open`/`should_close`/`client_size`. Internals: `Window_State` lives in an m03
+  `Handle_Pool(Window_State, Window_Handle)`; **`GWLP_USERDATA` stores the `Window_Handle`,
+  never a pointer** — the WndProc (a `proc "system"` with no Odin context; first line
+  `context = runtime.default_context()`) resolves it per message, so pool swap-relocation
+  can't dangle it (proven by the two-window destroy-independence test). Close is a
+  negotiation: `WM_CLOSE` records `close_requested` and returns 0; only `destroy_window`
+  destroys. Client-size semantics via `AdjustWindowRectExForDpi`; UTF-16 conversion at the
+  border; `UnregisterClassW` at shutdown; black stock-brush background until a renderer owns
+  the pixels (to be removed in m20 — swapchain fights the eraser). 8 conformance tests
+  (hidden windows, single-threaded runner — `-define:ODIN_TEST_THREADS=1`), green ·
+  leak-clean · vet/strict-style clean; `core:sys/windows` confined to platform (grep-verified).
+  Demo: visible resizable window, clean ✕ exit. Debugging gauntlet worth remembering:
+  missing `WNDCLASSEXW.cbSize` · class re-registration across init cycles ·
+  stack-local-pointer-in-USERDATA (the m03 trap, live) · client-vs-outer size · a ZII
+  named-return (`ok` never set true) silently discarding every WndProc write.
+  Spec delta merged capability: `platform-window`. Bench: `katas/window_pump_bench/main.odin`.
+- **Measured:** (tutor-run · `odin run -o:speed` · 2 runs, stable)
+  - **Empty pump ≈ 185 ns/frame** (1M iterations): the forever-cost of `poll_events` with an
+    idle queue — one `PeekMessageW` kernel round-trip. At 60 fps that's ~0.001% of a 16.7 ms
+    frame budget: the pump is never the problem.
+  - **`should_close` ≈ 0.44 ns/query** (10M iterations): the loop condition is one pool
+    resolve — matching m03-01's measured 0.41 ns. The handle discipline at a real OS boundary
+    costs what it cost in the kata: nothing.
+  - **`init` ≈ 0.03 ms; `create_window` (visible) ≈ 16–18 ms** one-shot — dominated by the
+    OS/DWM actually building the window; irrelevant to steady-state.
+  - **Build:** testbed clean `-o:speed` 1.32 s; binary **480,256 B** vs m03-03's 472,576 →
+    **+7,680 B (+1.6%)** for user32-linked windowing.
+  - The testbed loop currently pumps ~5.4M times/sec doing nothing — a busy-spin pegging one
+    core at 100%. Correct today; **m11 (timing & main loop) exists to fix exactly this.**
+- **Takeaways:** <!-- [you] review findings + probe answers worth keeping -->
+  Win32 not as hard as it looks, actually managed to get it running in a couple hours
+- **Reflections:** <!-- [you] your own words: what was hard, what clicked, open questions -->
+  There are still a lot of details in win32 windows but this was a fun milestone.
+
 ## 2026-07-22 — lesson-m03-03: core-containers (graduate)
 
 - **Built:** `engine/core/containers/handle_pool/` (`package handle_pool`) — the m03-02 kata

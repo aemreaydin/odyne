@@ -118,6 +118,14 @@ Never reuse or rename a key once a lesson cites it.
 - **Verified:** 2026-06-16
 - **Notes:** The concrete allocator interface (`Allocator{procedure, data}`, the 8-mode `Allocator_Mode`, `Allocator_Error`) and `core:mem` helpers — m02's implementation reference. Cite as `[ODIN-MEM runtime.Allocator]`.
 
+### ODIN-SYS
+- **Title:** Odin package documentation — `core:sys/windows`
+- **Author:** Odin team (Ginger Bill et al.)
+- **Type:** docs
+- **Where:** https://pkg.odin-lang.org/core/sys/windows/
+- **Verified:** 2026-07-22
+- **Notes:** The stdlib's Win32 bindings — 1000+ types (`HWND`, `WNDCLASSEXW`, `MSG`), 6000+ constants (`WS_*`, `WM_*`), user32/kernel32 procs — no hand-written foreign blocks needed for m10's platform layer.
+
 ### RTR
 - **Title:** Real-Time Rendering, 4th Edition
 - **Author:** Tomas Akenine-Möller, Eric Haines, Naty Hoffman, Angelo Pesce, Michał Iwanicki, Sébastien Hillaire
@@ -141,6 +149,14 @@ Never reuse or rename a key once a lesson cites it.
 - **Where:** https://docs.vulkan.org/spec/latest/index.html
 - **Verified:** 2026-06-10
 - **Notes:** Authoritative API semantics (1.4.353 at verification) — the arbiter when VKGUIDE and reality disagree.
+
+### WIN32
+- **Title:** Get Started with Win32 (Learn Win32 module) & Win32 API reference
+- **Author:** Microsoft
+- **Type:** docs
+- **Where:** https://learn.microsoft.com/en-us/windows/win32/learnwin32/creating-a-window · API ref: https://learn.microsoft.com/en-us/windows/win32/api/
+- **Verified:** 2026-07-22
+- **Notes:** Canonical Win32 window semantics — window classes, `CreateWindowEx`, the window procedure, the message loop — m10's API authority. Cite as `[WIN32 Creating a Window]`.
 
 ### ZYL-HANDLES
 - **Title:** "Handles are the better pointers": An Odin gamedev follow-up · odin-handle-map

@@ -5,11 +5,10 @@ import "core:mem"
 import "engine:core/containers/handle_pool"
 import "engine:core/memory"
 import "engine:game"
+import "engine:platform"
 
 main :: proc() {
 	fmt.println(game.boot())
-
-
 	{
 		arena: memory.Arena
 		arena_backing: [128]byte
@@ -93,5 +92,17 @@ main :: proc() {
 	fmt.println(ha_err)
 
 	handle_pool.clear(&hp)
+
+
+	platform.init()
+	wnd_handle, err := platform.create_window({hidden = false, title = "odyne"})
+	defer platform.shutdown()
+	if err != .None {
+		return
+	}
+
+	for !platform.should_close(wnd_handle) {
+		platform.poll_events()
+	}
 }
 

@@ -109,12 +109,12 @@ modules:
         slug: win32-window
         title: A Win32 window
         type: build
-        status: available
+        status: done
       - id: m10-02
         slug: input
         title: Keyboard & mouse input
         type: build
-        status: locked
+        status: available
 
   - id: m11
     title: Timing & main loop
