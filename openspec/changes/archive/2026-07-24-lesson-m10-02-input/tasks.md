@@ -54,4 +54,4 @@
 - [x] 6.3 [you] Write Takeaways + Reflections in curriculum/JOURNAL.md (your own words) (verified 2026-07-24)
 - [x] 6.4 [tutor] Copy lesson.md → curriculum/modules/m10/m10-02-input/LESSON.md (done 2026-07-24)
 - [x] 6.5 [tutor] Update curriculum/curriculum.yaml (m10-02 → done; m11-01 → available; clear active_change) (done 2026-07-24)
-- [ ] 6.6 [tutor] Commit the lesson; hand off to /opsx:archive (syncs the platform-input spec into openspec/specs/)
+- [x] 6.6 [tutor] Commit the lesson; hand off to /opsx:archive (syncs the platform-input spec into openspec/specs/) (committed 7b176de; archived 2026-07-24)
