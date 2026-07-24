@@ -177,6 +177,48 @@ test_destroying_one_window_leaves_other_intact :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_mutators_report_handle_validity :: proc(t: ^testing.T) {
+	init()
+	defer shutdown()
+
+	h, err := create_window({hidden = true})
+	testing.expect_value(t, err, Window_Error.None)
+
+	// Live handle: mutations apply and report .None.
+	testing.expect_value(t, set_should_close(h), Window_Error.None)
+	testing.expect(t, should_close(h), "set_should_close(true) must be observable")
+	testing.expect_value(t, set_should_close(h, false), Window_Error.None)
+	testing.expect(t, !should_close(h), "set_should_close(false) must be observable")
+	testing.expect_value(t, set_window_title(h, "renamed"), Window_Error.None)
+
+	// Zero and stale handles: mutations report .Invalid_Handle and change nothing.
+	zero: Window_Handle
+	testing.expect_value(t, set_should_close(zero), Window_Error.Invalid_Handle)
+	testing.expect_value(t, set_window_title(zero, "nope"), Window_Error.Invalid_Handle)
+
+	stale := h
+	testing.expect_value(t, destroy_window(h), Window_Error.None)
+	testing.expect_value(t, set_should_close(stale), Window_Error.Invalid_Handle)
+	testing.expect_value(t, set_window_title(stale, "nope"), Window_Error.Invalid_Handle)
+}
+
+@(test)
+test_init_reports_failed_reinitialization :: proc(t: ^testing.T) {
+	testing.expect_value(t, init(), Window_Error.None)
+
+	h, cerr := create_window({hidden = true})
+	testing.expect_value(t, cerr, Window_Error.None)
+
+	// A second init cannot re-register the window class: it must report .Init_Failed
+	// and must NOT touch the live pool (register-before-pool ordering), so the first
+	// system stays intact and a single shutdown cleans everything up.
+	testing.expect_value(t, init(), Window_Error.Init_Failed)
+	testing.expect(t, is_open(h), "failed re-init must leave the live window system intact")
+
+	shutdown()
+}
+
+@(test)
 test_shutdown_survives_failed_native_destroy :: proc(t: ^testing.T) {
 	init()
 

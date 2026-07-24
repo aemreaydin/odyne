@@ -27,18 +27,23 @@ Window_State :: struct {
 @(private)
 g_window_pool: handle_pool.Handle_Pool(Window_State, Window_Handle)
 
-// init prepares the window system: the pool is initialized from `allocator`.
-// Single-threaded by contract — call from the thread that will pump messages.
-init :: proc(allocator := context.allocator) {
-	handle_pool.init(&g_window_pool, WIN_POOL_CAP, allocator)
-
+// init prepares the window system: the window class is registered, then the pool is
+// initialized from `allocator`. Registration failure (e.g. a second init without an
+// intervening shutdown) → .Init_Failed; it happens before any allocation, so a live
+// window system is left untouched. Single-threaded by contract — call from the thread
+// that will pump messages.
+init :: proc(allocator := context.allocator) -> Window_Error {
 	hinstance := win32.HINSTANCE(win32.GetModuleHandleW(nil))
 	assert(hinstance != nil, "instance shouldn't be nil")
 
 	atom := register_class(hinstance)
-	assert(atom != 0, "register class shouldn't return 0")
+	if atom == 0 {
+		return .Init_Failed
+	}
 
+	handle_pool.init(&g_window_pool, WIN_POOL_CAP, allocator)
 	init_vk_table()
+	return .None
 }
 
 // shutdown destroys any remaining windows (best-effort), then frees the window system's
@@ -179,22 +184,27 @@ has_focus :: proc(h: Window_Handle) -> bool {
 	return window_state.focused
 }
 
-set_should_close :: proc(h: Window_Handle, should_close: bool = true) -> bool {
+// set_should_close sets or clears the close-requested flag, observable via should_close.
+// Invalid handle → .Invalid_Handle.
+set_should_close :: proc(h: Window_Handle, should_close: bool = true) -> Window_Error {
 	window_state, ok := get_state(h)
 	if !ok {
-		return false
+		return .Invalid_Handle
 	}
 	window_state.close_requested = should_close
-	return window_state.close_requested
+	return .None
 }
 
-set_window_title :: proc(h: Window_Handle, title: string) {
+// set_window_title renames the native window. Invalid handle → .Invalid_Handle; the
+// native call itself is best-effort (a cosmetic OS rejection is not reported).
+set_window_title :: proc(h: Window_Handle, title: string) -> Window_Error {
 	window_state, ok := get_state(h)
 	if !ok {
-		return
+		return .Invalid_Handle
 	}
 
 	win32.SetWindowTextW(window_state.hwnd, win32.utf8_to_wstring(title))
+	return .None
 }
 
 // client_size returns the window's current client area, or {0,0} on an invalid handle.

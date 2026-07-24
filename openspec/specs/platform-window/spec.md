@@ -48,6 +48,17 @@ No operating-system-specific type (native window handles, message structures, OS
 - **WHEN** two windows exist and one is destroyed
 - **THEN** the surviving window still reports open, and its subsequent events (e.g. a close request) are routed to it correctly
 
+### Requirement: Uniform error reporting
+Window queries SHALL answer benign zero values for invalid handles. Window mutators and system initialization SHALL report failure through the platform error type: a mutation through an invalid handle SHALL return an invalid-handle error with no side effects, and a failed initialization SHALL return an initialization error while leaving any already-initialized window system undisturbed. Purely cosmetic native failures (e.g. a title change the OS rejects on a live window) MAY be best-effort. (Supersedes the silent no-op mutator grammar from lesson-m10-02 amendment 4.)
+
+#### Scenario: Mutation through an invalid handle reports an error
+- **WHEN** a mutator (close request, title change) is called with a zero or stale handle
+- **THEN** it returns an invalid-handle error and no window state changes
+
+#### Scenario: Failed re-initialization leaves the system intact
+- **WHEN** the window system is initialized a second time without an intervening shutdown
+- **THEN** the call reports an initialization error and previously created windows remain open and functional
+
 ### Requirement: Headless-capable windows
 Window creation SHALL support a hidden mode producing a fully functional window — real native handle, message processing, size queries — that never appears on screen, so automated tests can exercise the full lifecycle headlessly.
 
