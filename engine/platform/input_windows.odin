@@ -1,13 +1,13 @@
 package platform
 
 import win32 "core:sys/windows"
-import "engine:core/containers/handle_pool"
-
-@(private)
-vk_to_key: [256]Key
 
 @(private = "file")
-IS_DOWN_BIT :: (1 << 31)
+vk_to_key: [256]Key
+
+// lparam bit 31 — the key message's transition state: SET on key-up, clear on key-down.
+@(private = "file")
+KEY_UP_BIT :: 1 << 31
 
 @(private = "file")
 WHEEL_DELTA :: 120
@@ -31,12 +31,12 @@ handle_input_message :: proc(
 		if key == .Unknown {
 			break
 		}
-		is_down := (lparam & IS_DOWN_BIT) == 0
+		is_down := (lparam & KEY_UP_BIT) == 0
 		process_state(&input.keys[key], is_down)
 	case win32.WM_MBUTTONDOWN, win32.WM_RBUTTONDOWN, win32.WM_LBUTTONDOWN, win32.WM_XBUTTONDOWN:
-		process_mouse_state(hwnd, msg, wparam, window_state, true)
+		process_mouse_state(window_state, hwnd, msg, wparam, true)
 	case win32.WM_MBUTTONUP, win32.WM_RBUTTONUP, win32.WM_LBUTTONUP, win32.WM_XBUTTONUP:
-		process_mouse_state(hwnd, msg, wparam, window_state, false)
+		process_mouse_state(window_state, hwnd, msg, wparam, false)
 	case win32.WM_MOUSEMOVE:
 		x_coord := win32.GET_X_LPARAM(lparam)
 		y_coord := win32.GET_Y_LPARAM(lparam)
@@ -53,91 +53,79 @@ handle_input_message :: proc(
 
 // key_down reports the key's level as of the last poll_events. Invalid handle → false.
 key_down :: proc(h: Window_Handle, k: Key) -> bool {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return false
 	}
-
 	return window_state.input.keys[k].ended_down
 }
 
 // key_pressed reports whether ≥1 up→down transition occurred during the last drain
 // (autorepeat produces none). Invalid handle → false.
 key_pressed :: proc(h: Window_Handle, k: Key) -> bool {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return false
 	}
-
-	b := window_state.input.keys[k]
-	return b.half_transitions >= 2 || (b.half_transitions == 1 && b.ended_down)
+	return was_pressed(window_state.input.keys[k])
 }
 
 // key_released reports whether ≥1 down→up transition occurred during the last drain.
 // Invalid handle → false.
 key_released :: proc(h: Window_Handle, k: Key) -> bool {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return false
 	}
-
-	b := window_state.input.keys[k]
-	return b.half_transitions >= 2 || (b.half_transitions == 1 && !b.ended_down)
+	return was_released(window_state.input.keys[k])
 }
 
 // mouse_down reports the button's level as of the last poll_events. Invalid handle → false.
 mouse_down :: proc(h: Window_Handle, b: Mouse_Button) -> bool {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return false
 	}
-
 	return window_state.input.buttons[b].ended_down
 }
 
 // mouse_pressed reports whether ≥1 up→down transition occurred during the last drain.
 // Invalid handle → false.
 mouse_pressed :: proc(h: Window_Handle, button: Mouse_Button) -> bool {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return false
 	}
-
-	b := window_state.input.buttons[button]
-	return b.half_transitions >= 2 || (b.half_transitions == 1 && b.ended_down)
+	return was_pressed(window_state.input.buttons[button])
 }
 
 // mouse_released reports whether ≥1 down→up transition occurred during the last drain.
 // Invalid handle → false.
 mouse_released :: proc(h: Window_Handle, button: Mouse_Button) -> bool {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return false
 	}
-
-	b := window_state.input.buttons[button]
-	return b.half_transitions >= 2 || (b.half_transitions == 1 && !b.ended_down)
+	return was_released(window_state.input.buttons[button])
 }
 
 // mouse_position returns the cursor position in signed client pixels as of the last
 // poll_events. Invalid handle → {0, 0}.
 mouse_position :: proc(h: Window_Handle) -> [2]i32 {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return {0, 0}
 	}
-
 	return window_state.input.cursor
 }
 
 // mouse_wheel returns the wheel motion accumulated during the last drain, in detents
 // (+ away from user), reset each poll. Invalid handle → 0.
 mouse_wheel :: proc(h: Window_Handle) -> f32 {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return 0
 	}
-
 	return window_state.input.wheel
 }
 
@@ -219,17 +207,13 @@ init_vk_table :: proc() {
 	vk_to_key[win32.VK_RCONTROL] = .Right_Ctrl
 	vk_to_key[win32.VK_LMENU] = .Left_Alt
 	vk_to_key[win32.VK_RMENU] = .Right_Alt
-
-	vk_to_key[win32.VK_SHIFT] = .Left_Shift
-	vk_to_key[win32.VK_CONTROL] = .Left_Ctrl
-	vk_to_key[win32.VK_MENU] = .Left_Alt
 }
 
 @(private = "file")
 process_state :: proc(b: ^Button_State, is_down: bool) {
 	if b.ended_down != is_down {
 		b.ended_down = is_down
-		if b.half_transitions < 255 {
+		if b.half_transitions < max(u8) {
 			b.half_transitions += 1
 		}
 	}
@@ -237,10 +221,10 @@ process_state :: proc(b: ^Button_State, is_down: bool) {
 
 @(private = "file")
 process_mouse_state :: proc(
+	window_state: ^Window_State,
 	hwnd: win32.HWND,
 	msg: win32.UINT,
 	wparam: win32.WPARAM,
-	window_state: ^Window_State,
 	is_down: bool,
 ) {
 	button, ok := button_from_msg(msg, wparam)
@@ -259,7 +243,7 @@ process_mouse_state :: proc(
 
 @(private = "file")
 key_from_vk :: proc "contextless" (vk: win32.WPARAM) -> Key {
-	if vk >= 256 do return .Unknown
+	if vk >= len(vk_to_key) do return .Unknown
 	return vk_to_key[vk]
 }
 

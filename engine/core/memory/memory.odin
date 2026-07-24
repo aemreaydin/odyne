@@ -1,25 +1,24 @@
 package memory
 
-// m02-04 graduate — the core-memory package (engine:core/memory). This is a RED STUB:
-// prefixed signatures with benign bodies so the conformance tests compile and fail.
+// engine:core/memory — fixed-backing allocators (graduated from katas m02-02..m02-04):
 //
-// Your task (4.1): replace these bodies by porting your m02-02 arena and m02-03 pool
-// implementations here — change their `package` to `memory` and prefix the public procs
-// (arena_* / pool_*). Because this package is `memory` (not `mem`), `import "core:mem"`
-// needs no alias: your kata code's `mem.` references port over verbatim. You may keep one
-// file or split into arena.odin + pool.odin; only the package and public names must match
-// this surface. File-private helpers carry over unchanged.
+//	Arena — linear bump allocator over a borrowed buffer; frees only all-at-once
+//	Pool  — fixed-size block allocator with an intrusive free list over a borrowed buffer
+//
+// Both implement Odin's mem.Allocator contract through arena_allocator / pool_allocator;
+// neither owns its backing memory — the caller's buffer must outlive the allocator.
+// (Logging_Allocator, the debug wrapper, lives in logging.odin.)
 
-import "core:mem"
 import "base:intrinsics"
+import "core:mem"
 
 // ── arena (graduating from m02-02) ───────────────────────────────────────────
 
 Arena :: struct {
 	data:        []byte, // borrowed backing storage (not owned)
-	offset:      int,    // bytes used; the next allocation aligns up from here
-	prev_offset: int,    // start of the most recent allocation — enables the Resize fast path
-	peak_used:   int,    // high-water mark of `offset`, for the measurement task
+	offset:      int, // bytes used; the next allocation aligns up from here
+	prev_offset: int, // start of the most recent allocation — enables the Resize fast path
+	peak_used:   int, // high-water mark of `offset`, for the measurement task
 }
 
 arena_init :: proc(a: ^Arena, backing: []byte) {
@@ -49,6 +48,7 @@ arena_allocator :: proc(a: ^Arena) -> mem.Allocator {
 //	.Query_Info        return (nil, .Mode_Not_Implemented)
 //
 // A request that does not fit returns (nil, .Out_Of_Memory).
+@(private)
 arena_allocator_proc :: proc(
 	allocator_data: rawptr,
 	mode: mem.Allocator_Mode,
@@ -78,7 +78,14 @@ arena_allocator_proc :: proc(
 	case .Query_Features:
 		set := (^mem.Allocator_Mode_Set)(old_memory)
 		if set != nil {
-			set^ = {.Alloc, .Alloc_Non_Zeroed, .Free_All, .Resize, .Resize_Non_Zeroed, .Query_Features}
+			set^ = {
+				.Alloc,
+				.Alloc_Non_Zeroed,
+				.Free_All,
+				.Resize,
+				.Resize_Non_Zeroed,
+				.Query_Features,
+			}
 		}
 		return nil, .None
 	case .Query_Info:
@@ -110,7 +117,15 @@ arena_safe_add :: #force_inline proc "contextless" (a, b: $T) -> (T, bool) {
 	return val, !overflowed
 }
 
-arena_alloc :: proc(a: ^Arena, size: int, alignment: int, zero: bool) -> (data: []byte, err: mem.Allocator_Error) {
+arena_alloc :: proc(
+	a: ^Arena,
+	size: int,
+	alignment: int,
+	zero: bool,
+) -> (
+	data: []byte,
+	err: mem.Allocator_Error,
+) {
 	assert(size >= 0, "size must be non-negative")
 
 	aligned_offset, ok := arena_align_forward(a, alignment)
@@ -136,7 +151,17 @@ arena_alloc :: proc(a: ^Arena, size: int, alignment: int, zero: bool) -> (data: 
 	return
 }
 
-arena_resize :: proc(a: ^Arena, old_memory: rawptr, old_size: int, size: int, alignment: int, zero: bool) -> (data: []byte, err: mem.Allocator_Error) {
+arena_resize :: proc(
+	a: ^Arena,
+	old_memory: rawptr,
+	old_size: int,
+	size: int,
+	alignment: int,
+	zero: bool,
+) -> (
+	data: []byte,
+	err: mem.Allocator_Error,
+) {
 	old_data := ([^]byte)(old_memory)
 
 	if old_data == nil {
@@ -145,7 +170,7 @@ arena_resize :: proc(a: ^Arena, old_memory: rawptr, old_size: int, size: int, al
 
 	if uintptr(old_data) == uintptr(raw_data(a.data)) + uintptr(a.prev_offset) {
 		offset, ok := arena_safe_add(a.prev_offset, size)
-		if !ok ||offset > len(a.data) {
+		if !ok || offset > len(a.data) {
 			err = .Out_Of_Memory
 			return
 		}
@@ -179,11 +204,11 @@ arena_free_all :: proc(a: ^Arena) {
 // (`Free_Node` overlaid on each free block). A block is valid until it is freed or
 // free_all is called.
 Pool :: struct {
-	data:       []byte,     // borrowed backing storage (not owned)
-	block_size: int,        // effective slot stride: align_up(max(requested, size_of(rawptr)), alignment)
-	alignment: int,
+	data:       []byte, // borrowed backing storage (not owned)
+	block_size: int, // effective slot stride: align_up(max(requested, size_of(rawptr)), alignment)
+	alignment:  int,
 	head:       ^Free_Node, // first free block, or nil when the pool is exhausted
-	free_count: int,        // free blocks remaining (stats/debug)
+	free_count: int, // free blocks remaining (stats/debug)
 }
 
 // Free_Node overlays the first bytes of a *free* block; when the block is allocated,
@@ -222,6 +247,7 @@ pool_allocator :: proc(p: ^Pool) -> mem.Allocator {
 //	.Query_Features    fill (^mem.Allocator_Mode_Set)(old_memory) with
 //	                   {.Alloc, .Alloc_Non_Zeroed, .Free, .Free_All, .Query_Features}
 //	.Query_Info        (nil, .Mode_Not_Implemented)
+@(private)
 pool_allocator_proc :: proc(
 	allocator_data: rawptr,
 	mode: mem.Allocator_Mode,
@@ -265,7 +291,15 @@ pool_allocator_proc :: proc(
 // (overwriting the stale free-list link left in the block); `.Alloc_Non_Zeroed` does not.
 // `size` must be in 1..=block_size — a larger request is .Invalid_Argument, and an empty
 // pool is .Out_Of_Memory.
-pool_alloc :: proc(p: ^Pool, size: int, alignment: int, zero: bool) -> (data: []byte, err: mem.Allocator_Error) {
+pool_alloc :: proc(
+	p: ^Pool,
+	size: int,
+	alignment: int,
+	zero: bool,
+) -> (
+	data: []byte,
+	err: mem.Allocator_Error,
+) {
 	if size == 0 {
 		return
 	}
@@ -286,7 +320,7 @@ pool_alloc :: proc(p: ^Pool, size: int, alignment: int, zero: bool) -> (data: []
 	block := p.head
 	p.head = block.next
 	p.free_count -= 1
-	
+
 	data = mem.byte_slice(block, size)
 	if zero {
 		mem.zero_slice(data)
@@ -298,8 +332,15 @@ pool_alloc :: proc(p: ^Pool, size: int, alignment: int, zero: bool) -> (data: []
 // The address must lie inside the pool's backing; freeing a foreign or already-freed
 // pointer corrupts the list. This is the allocator's .Free path.
 pool_free_block :: proc(p: ^Pool, block: rawptr) {
-	assert(uintptr(block) >= uintptr(raw_data(p.data)) && uintptr(block) < uintptr(raw_data(p.data)) + uintptr(len(p.data)), "block must be within the pool's data")
-	assert((uintptr(block) - uintptr(raw_data(p.data))) % uintptr(p.block_size) == 0, "block must be aligned to the block size")
+	assert(
+		uintptr(block) >= uintptr(raw_data(p.data)) &&
+		uintptr(block) < uintptr(raw_data(p.data)) + uintptr(len(p.data)),
+		"block must be within the pool's data",
+	)
+	assert(
+		(uintptr(block) - uintptr(raw_data(p.data))) % uintptr(p.block_size) == 0,
+		"block must be aligned to the block size",
+	)
 	block := (^Free_Node)(block)
 	block.next = p.head
 	p.head = block
@@ -315,9 +356,11 @@ pool_thread_free_list :: proc(p: ^Pool) {
 	p.free_count = len(p.data) / p.block_size
 	p.head = nil
 
-	for i in 0..<p.free_count {
+	for i in 0 ..< p.free_count {
 		block := (^Free_Node)(&p.data[i * p.block_size])
 		block.next = p.head
 		p.head = block
 	}
 }
+
+

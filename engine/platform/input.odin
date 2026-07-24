@@ -84,6 +84,20 @@ Button_State :: struct {
 	ended_down:       bool,
 }
 
+// was_pressed reports whether `b` recorded ≥1 up→down transition during the last drain:
+// two or more flips always contain one; a single flip counts only if it landed down.
+@(private)
+was_pressed :: proc(b: Button_State) -> bool {
+	return b.half_transitions >= 2 || (b.half_transitions == 1 && b.ended_down)
+}
+
+// was_released reports whether `b` recorded ≥1 down→up transition during the last drain:
+// two or more flips always contain one; a single flip counts only if it landed up.
+@(private)
+was_released :: proc(b: Button_State) -> bool {
+	return b.half_transitions >= 2 || (b.half_transitions == 1 && !b.ended_down)
+}
+
 // Input_State — one window's input snapshot, embedded in Window_State. Counters and
 // wheel reset when poll_events retires the frame; levels and cursor persist.
 Input_State :: struct {

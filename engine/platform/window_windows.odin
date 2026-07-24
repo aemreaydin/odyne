@@ -41,12 +41,15 @@ init :: proc(allocator := context.allocator) {
 	init_vk_table()
 }
 
-// shutdown destroys any remaining windows, then frees the window system's state.
-// Every outstanding Window_Handle is dead afterwards.
+// shutdown destroys any remaining windows (best-effort), then frees the window system's
+// state. Every outstanding Window_Handle is dead afterwards — a window whose native
+// destroy fails is still evicted from the pool, so shutdown always terminates.
 shutdown :: proc() {
-	slice := handle_pool.slice(&g_window_pool)
-	for g_window_pool.count > 0 {
-		destroy_window(slice[0].handle)
+	for !handle_pool.is_empty(&g_window_pool) {
+		h := handle_pool.slice(&g_window_pool)[0].handle
+		if destroy_window(h) != .None {
+			handle_pool.remove(&g_window_pool, h)
+		}
 	}
 	handle_pool.destroy(&g_window_pool)
 
@@ -57,8 +60,8 @@ shutdown :: proc() {
 // The returned handle is the only name upper layers ever have for the window.
 create_window :: proc(desc: Window_Desc) -> (h: Window_Handle, err: Window_Error) {
 	title := len(desc.title) == 0 ? "odyne" : desc.title
-	width := desc.width == 0 ? 1280 : desc.width
-	height := desc.height == 0 ? 720 : desc.height
+	width := desc.width <= 0 ? 1280 : desc.width
+	height := desc.height <= 0 ? 720 : desc.height
 
 	window_state := Window_State {
 		size = {width, height},
@@ -70,7 +73,6 @@ create_window :: proc(desc: Window_Desc) -> (h: Window_Handle, err: Window_Error
 		err = .Create_Failed
 		return
 	}
-
 
 	dpix, dpiy: win32.UINT
 	win32.GetDpiForMonitor(
@@ -101,6 +103,8 @@ create_window :: proc(desc: Window_Desc) -> (h: Window_Handle, err: Window_Error
 		rawptr(uintptr(h)),
 	)
 	if hwnd == nil {
+		handle_pool.remove(&g_window_pool, h)
+		h = 0
 		err = .Create_Failed
 		return
 	}
@@ -109,8 +113,8 @@ create_window :: proc(desc: Window_Desc) -> (h: Window_Handle, err: Window_Error
 		win32.ShowWindow(hwnd, win32.SW_SHOWNORMAL)
 	}
 
-	ws_ptr, ws_err := handle_pool.get_ptr(&g_window_pool, h)
-	assert(ws_err == .None, "get_ptr shouldn't fail")
+	ws_ptr, ws_ok := get_state(h)
+	assert(ws_ok, "window state lookup shouldn't fail")
 	ws_ptr.hwnd = hwnd
 
 	return
@@ -119,8 +123,8 @@ create_window :: proc(desc: Window_Desc) -> (h: Window_Handle, err: Window_Error
 // destroy_window closes the native window and stales the handle. This is the ONLY
 // path that destroys a window — a user's close click merely sets should_close.
 destroy_window :: proc(h: Window_Handle) -> Window_Error {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return .Invalid_Handle
 	}
 	hwnd := window_state.hwnd
@@ -129,8 +133,7 @@ destroy_window :: proc(h: Window_Handle) -> Window_Error {
 		return .Destroy_Failed
 	}
 
-	err = handle_pool.remove(&g_window_pool, h)
-	if err != .None {
+	if handle_pool.remove(&g_window_pool, h) != .None {
 		return .Invalid_Handle
 	}
 
@@ -159,8 +162,8 @@ is_open :: proc(h: Window_Handle) -> bool {
 // should_close reports whether the user has requested close (✕ / Alt+F4) since
 // create. The window stays open until destroy_window. Invalid handle → false.
 should_close :: proc(h: Window_Handle) -> bool {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return false
 	}
 	return window_state.close_requested
@@ -169,16 +172,16 @@ should_close :: proc(h: Window_Handle) -> bool {
 // has_focus reports whether `h` currently holds keyboard focus, as of the last
 // poll_events (WM_SETFOCUS / WM_KILLFOCUS bookkeeping). Invalid handle → false.
 has_focus :: proc(h: Window_Handle) -> bool {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return false
 	}
 	return window_state.focused
 }
 
 set_should_close :: proc(h: Window_Handle, should_close: bool = true) -> bool {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return false
 	}
 	window_state.close_requested = should_close
@@ -186,8 +189,8 @@ set_should_close :: proc(h: Window_Handle, should_close: bool = true) -> bool {
 }
 
 set_window_title :: proc(h: Window_Handle, title: string) {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return
 	}
 
@@ -196,8 +199,8 @@ set_window_title :: proc(h: Window_Handle, title: string) {
 
 // client_size returns the window's current client area, or {0,0} on an invalid handle.
 client_size :: proc(h: Window_Handle) -> [2]i32 {
-	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
+	window_state, ok := get_state(h)
+	if !ok {
 		return {0, 0}
 	}
 	return window_state.size
@@ -232,8 +235,6 @@ wndproc :: proc "system" (
 		return wm_create(hwnd, lparam)
 	case win32.WM_CLOSE:
 		return wm_close(hwnd, msg, wparam, lparam)
-	case win32.WM_DESTROY:
-		return wm_destroy(hwnd)
 	case win32.WM_SIZE:
 		return wm_size(hwnd, msg, wparam, lparam)
 	case win32.WM_KEYDOWN,
@@ -270,11 +271,6 @@ wm_create :: proc(hwnd: win32.HWND, lparam: win32.LPARAM) -> win32.LRESULT {
 	wh := (Window_Handle)(uintptr(pcs.lpCreateParams))
 	win32.SetWindowLongPtrW(hwnd, win32.GWLP_USERDATA, win32.LONG_PTR(wh))
 
-	return 0
-}
-
-@(private = "file")
-wm_destroy :: proc(hwnd: win32.HWND) -> win32.LRESULT {
 	return 0
 }
 
@@ -381,23 +377,21 @@ wm_capture_changed :: proc(
 
 	if window_state.holds_capture {
 		clear_buttons(window_state)
-		return 0
-	} else {
-		return 0
 	}
+	return 0
+}
+
+// get_state resolves a public handle to its pool state — the shared preamble of every
+// per-window query and mutator. Invalid handle → (nil, false).
+@(private)
+get_state :: proc(h: Window_Handle) -> (^Window_State, bool) {
+	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
+	return window_state, err == .None
 }
 
 @(private = "file")
-get_state_from_win :: proc(hwnd: win32.HWND) -> (window_state: ^Window_State, ok: bool) {
+get_state_from_win :: proc(hwnd: win32.HWND) -> (^Window_State, bool) {
 	wh := Window_Handle(win32.GetWindowLongPtrW(hwnd, win32.GWLP_USERDATA))
-
-	err: handle_pool.Error
-	window_state, err = handle_pool.get_ptr(&g_window_pool, wh)
-	if err != .None {
-		return
-	}
-
-	ok = true
-	return
+	return get_state(wh)
 }
 

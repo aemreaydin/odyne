@@ -65,20 +65,25 @@ destroy :: proc(p: ^Handle_Pool($T, $HT)) {
 
 // clear empties the pool without releasing memory: every LIVE slot's generation is bumped
 // (retire-on-wrap) via each live item's embedded handle, the freelist is rebuilt over all
-// slots, and count returns to 0. Every previously issued handle is stale afterwards.
+// non-retired slots, and count returns to 0. Every previously issued handle is stale
+// afterwards. Retired slots (gen 0) stay retired — a fully retired pool remains .Full.
 clear :: proc(p: ^Handle_Pool($T, $HT)) {
-	p.free_head = 0
-	p.free_tail = u32(len(p.slots) - 1)
 	for i in 0 ..< p.count {
 		item := p.items[i]
 		idx, _ := unpack_handle(item.handle)
 		increment_gen(&p.slots[idx])
 	}
+
+	p.free_head = SENTINEL
+	p.free_tail = SENTINEL
 	for &slot, idx in p.slots {
 		slot.dense_idx = u32(idx)
-		slot.next = u32(idx + 1)
+		if slot.gen == 0 {
+			slot.next = SENTINEL
+			continue
+		}
+		enqueue_free_slot(p, u32(idx))
 	}
-	p.slots[len(p.slots) - 1].next = SENTINEL
 	p.count = 0
 }
 
@@ -100,6 +105,10 @@ add :: proc(p: ^Handle_Pool($T, $HT), item: T) -> (h: HT, err: Error) {
 	p.free_head = slot.next
 	p.count += 1
 	return ht, .None
+}
+
+is_empty :: proc(p: ^Handle_Pool($T, $HT)) -> bool {
+	return p.count == 0
 }
 
 // remove deletes the item `h` refers to: the last dense item is swapped into the gap and its
@@ -124,14 +133,7 @@ remove :: proc(p: ^Handle_Pool($T, $HT), h: HT) -> Error {
 	p.count -= 1
 	overflow := increment_gen(&p.slots[slot_idx])
 	if !overflow {
-		p.slots[slot_idx].next = SENTINEL
-		if p.free_head == SENTINEL {
-			p.free_head = slot_idx
-			p.free_tail = slot_idx
-		} else {
-			p.slots[p.free_tail].next = slot_idx
-			p.free_tail = slot_idx
-		}
+		enqueue_free_slot(p, slot_idx)
 	}
 
 	return .None
@@ -166,7 +168,7 @@ get_ptr :: proc(p: ^Handle_Pool($T, $HT), h: HT) -> (item: ^T, err: Error) {
 }
 
 // has reports whether `h` currently resolves (in range, non-zero generation, generation
-// matches). Garbage-safe.
+// matches, and the dense item embeds this exact handle). Garbage- and forgery-safe.
 has :: proc(p: ^Handle_Pool($T, $HT), h: HT) -> bool {
 	_, ok := resolve_dense_idx(p, h)
 	return ok
@@ -189,6 +191,21 @@ increment_gen :: proc(slot: ^Slot) -> (overflow: bool) {
 	return
 }
 
+// enqueue_free_slot appends the slot to the freelist's tail (FIFO). The caller guarantees
+// the slot is neither retired nor already enqueued — remove and clear both share this so
+// their freelist policies cannot drift apart.
+@(private = "file")
+enqueue_free_slot :: proc(p: ^Handle_Pool($T, $HT), slot_idx: u32) {
+	p.slots[slot_idx].next = SENTINEL
+	if p.free_head == SENTINEL {
+		p.free_head = slot_idx
+		p.free_tail = slot_idx
+	} else {
+		p.slots[p.free_tail].next = slot_idx
+		p.free_tail = slot_idx
+	}
+}
+
 @(private = "file")
 pack_handle :: proc($HT: typeid, idx, gen: u32) -> HT {
 	return HT(u64(gen) << 32 | u64(idx))
@@ -201,13 +218,22 @@ unpack_handle :: proc(h: $HT) -> (idx, gen: u32) {
 	return
 }
 
+// resolve_dense_idx maps a handle to its dense index. The sparse checks reject
+// out-of-range, zero-gen, and gen-mismatched handles; the dense check then requires the
+// resolved item to embed this exact handle. That last comparison kills FORGED handles
+// that happen to match a free slot's current generation — without it they'd resolve
+// through the free slot's stale dense_idx to another live item, and a remove through one
+// would double-enqueue the free slot and corrupt the freelist.
 @(private = "file")
 resolve_dense_idx :: proc(p: ^Handle_Pool($T, $HT), ht: HT) -> (dense_idx: u32, ok: bool) {
 	slot_idx, gen := unpack_handle(ht)
 	if int(slot_idx) >= len(p.items) || gen == 0 || gen != p.slots[slot_idx].gen {
-		ok = false
-		return
+		return 0, false
 	}
-	return p.slots[slot_idx].dense_idx, true
+	dense_idx = p.slots[slot_idx].dense_idx
+	if dense_idx >= p.count || p.items[dense_idx].handle != ht {
+		return 0, false
+	}
+	return dense_idx, true
 }
 

@@ -175,3 +175,17 @@ test_destroying_one_window_leaves_other_intact :: proc(t: ^testing.T) {
 	testing.expect(t, should_close(w2), "surviving window's events must still route to it")
 	testing.expect(t, !should_close(w1), "stale handle must not report the survivor's events")
 }
+
+@(test)
+test_shutdown_survives_failed_native_destroy :: proc(t: ^testing.T) {
+	init()
+
+	// Whitebox: an entry whose hwnd is nil — the native destroy will fail. shutdown's
+	// best-effort policy must evict the entry anyway and terminate (it looped forever
+	// on an unclosable window before the eviction policy).
+	h, err := handle_pool.add(&g_window_pool, Window_State{})
+	testing.expect_value(t, err, handle_pool.Error.None)
+
+	shutdown()
+	testing.expect(t, !is_open(h), "shutdown must stale even an unclosable window's handle")
+}

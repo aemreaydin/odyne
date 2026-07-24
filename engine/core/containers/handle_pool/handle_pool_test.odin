@@ -439,3 +439,71 @@ test_distinct_handle_types_coexist :: proc(t: ^testing.T) {
 	testing.expect_value(t, ov.volume, 42)
 }
 
+@(test)
+test_forged_handle_matching_free_slot_gen_rejected :: proc(t: ^testing.T) {
+	p: Handle_Pool(Test_Item, Test_Handle)
+	init(&p, 2)
+	defer destroy(&p)
+
+	ha, _ := add(&p, Test_Item{value = 1})
+	hb, _ := add(&p, Test_Item{value = 2})
+	testing.expect_value(t, remove(&p, ha), Error.None) // frees A's slot at gen+1; B swaps to dense 0
+
+	// Forge a handle for the FREE slot at its CURRENT generation: every sparse check
+	// passes (in range, gen ≠ 0, gen matches) and the free slot's stale dense_idx points
+	// at live item B. Only the dense-side check (items[d].handle == h) can reject it —
+	// without it, get would return B and remove would corrupt the freelist.
+	forged := pack_test_handle(handle_idx(ha), handle_gen(ha) + 1)
+	testing.expect(t, !has(&p, forged), "forged handle must not resolve")
+	_, gerr := get(&p, forged)
+	testing.expect_value(t, gerr, Error.Invalid_Handle)
+	testing.expect_value(t, remove(&p, forged), Error.Invalid_Handle)
+
+	// The live item is untouched and still resolves.
+	v, err := get(&p, hb)
+	testing.expect_value(t, err, Error.None)
+	testing.expect_value(t, v.value, 2)
+}
+
+@(test)
+test_clear_keeps_retired_slots_retired :: proc(t: ^testing.T) {
+	p: Handle_Pool(Test_Item, Test_Handle)
+	init(&p, 1)
+	defer destroy(&p)
+
+	// Retire the only slot: age it to the last generation and remove (wrap ⇒ retired),
+	// exactly as test_retire_at_max_generation establishes.
+	h, _ := add(&p, Test_Item{value = 5})
+	p.slots[0].gen = max(u32)
+	aged := pack_test_handle(handle_idx(h), max(u32))
+	p.items[0].handle = aged
+	testing.expect_value(t, remove(&p, aged), Error.None)
+
+	clear(&p)
+
+	// clear rebuilds the freelist, but a retired slot must STAY retired: gen 0 can never
+	// back a resolvable handle, so re-enqueueing the slot would make add() hand out a
+	// handle that is dead on arrival — and a dense item that can never be removed.
+	h2, e := add(&p, Test_Item{value = 6})
+	testing.expect_value(t, e, Error.Full)
+	testing.expect(t, !has(&p, h2), "a handle from a retired slot must never resolve")
+}
+
+@(test)
+test_clear_retires_live_slot_at_max_generation :: proc(t: ^testing.T) {
+	p: Handle_Pool(Test_Item, Test_Handle)
+	init(&p, 1)
+	defer destroy(&p)
+
+	// A LIVE item whose slot sits at the last generation: clear's own bump wraps it to 0,
+	// which must retire the slot exactly like remove's wrap path does.
+	h, _ := add(&p, Test_Item{value = 5})
+	p.slots[0].gen = max(u32)
+	p.items[0].handle = pack_test_handle(handle_idx(h), max(u32))
+
+	clear(&p)
+
+	_, e := add(&p, Test_Item{value = 6})
+	testing.expect_value(t, e, Error.Full)
+}
+

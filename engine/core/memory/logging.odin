@@ -30,6 +30,7 @@ logging_allocator :: proc(l: ^Logging_Allocator) -> mem.Allocator {
 	return mem.Allocator{procedure = logging_allocator_proc, data = l}
 }
 
+@(private)
 logging_allocator_proc :: proc(
 	allocator_data: rawptr,
 	mode: mem.Allocator_Mode,
@@ -52,15 +53,16 @@ logging_allocator_proc :: proc(
 		location,
 	)
 	fmt.printfln(
-		"[%s] %-16v size=%-4s align=%-2s len=%-4s  ptr=%-12s  err=%v  %v",
+		"[%s] %-16v size=%-4d align=%-2d len=%-4d  ptr=%-12p  err=%v  %v",
 		l.label,
 		mode,
-		fmt.tprintf("%d", size),
-		fmt.tprintf("%d", alignment),
-		fmt.tprintf("%d", len(result)),
-		fmt.tprintf("%p", raw_data(result)),
+		size,
+		alignment,
+		len(result),
+		raw_data(result),
 		err,
 		location,
 	)
 	return result, err
 }
+
