@@ -70,6 +70,14 @@ Never reuse or rename a key once a lesson cites it.
 - **Verified:** 2026-07-19 (3e section numbers checked against the publisher's TOC page)
 - **Notes:** The course spine — engine layering, subsystems, the industry view in most lessons. **Citations follow 3e numbering (the learner's copy).** §6.2 memory and §7.2 resource manager match the 4e; the gameplay-systems chapters differ (3e §16.5 object references = 4e §17.5).
 
+### GLFW
+- **Title:** GLFW — Input guide
+- **Author:** GLFW team
+- **Type:** docs
+- **Where:** https://www.glfw.org/docs/latest/input_guide.html
+- **Verified:** 2026-07-22
+- **Notes:** The windowing middleware odyne didn't buy, input surface: dual read model (callbacks + `glfwGetKey` cached state polled after `glfwPollEvents`), `GLFW_PRESS/REPEAT/RELEASE` with repeat explicitly "intended for text input", sticky keys against lost taps, sub-pixel double cursor coords, double scroll offsets — m10-02's read-model and policy reference.
+
 ### GLTF
 - **Title:** glTF 2.0 Specification
 - **Author:** Khronos Group
@@ -133,6 +141,14 @@ Never reuse or rename a key once a lesson cites it.
 - **Where:** ISBN 978-1138627000 · https://www.realtimerendering.com/
 - **Verified:** 2026-06-10
 - **Notes:** Rendering theory — pipeline, transforms, lighting — m43 and renderer lessons generally.
+
+### SDL
+- **Title:** SDL3 wiki — SDL_GetKeyboardState · SDL_KeyboardEvent
+- **Author:** SDL project
+- **Type:** docs
+- **Where:** https://wiki.libsdl.org/SDL3/SDL_GetKeyboardState · https://wiki.libsdl.org/SDL3/SDL_KeyboardEvent
+- **Verified:** 2026-07-22
+- **Notes:** Ships BOTH input read models side by side: a scancode-indexed snapshot array updated by the event pump (with the documented lost-tap caveat: press+release before the pump "will never show up"), and an event queue whose key events carry `down` + `repeat` flags — m10-02's coexistence proof. Cite as `[SDL SDL_GetKeyboardState]`.
 
 ### VKGUIDE
 - **Title:** Vulkan Guide

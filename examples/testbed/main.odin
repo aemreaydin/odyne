@@ -101,8 +101,38 @@ main :: proc() {
 		return
 	}
 
+	last_key: platform.Key
 	for !platform.should_close(wnd_handle) {
 		platform.poll_events()
+
+		if platform.key_down(wnd_handle, .Escape) {
+			platform.set_should_close(wnd_handle, true)
+		}
+
+		buttons_string := ""
+		for button in platform.Mouse_Button {
+			if platform.mouse_down(wnd_handle, button) {
+				buttons_string = fmt.tprintf("%s %v", buttons_string, button)
+			}
+		}
+
+		for key in platform.Key {
+			if platform.key_pressed(wnd_handle, key) {
+				last_key = key
+				break
+			}
+		}
+
+		mouse_pos := platform.mouse_position(wnd_handle)
+		title := fmt.tprintf(
+			"Pos: (%d, %d) - Buttons: %s - Last_key: %v",
+			mouse_pos.x,
+			mouse_pos.y,
+			buttons_string,
+			last_key,
+		)
+		platform.set_window_title(wnd_handle, title)
+		free_all(context.temp_allocator)
 	}
 }
 

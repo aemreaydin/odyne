@@ -114,7 +114,7 @@ modules:
         slug: input
         title: Keyboard & mouse input
         type: build
-        status: available
+        status: done
 
   - id: m11
     title: Timing & main loop
@@ -125,7 +125,7 @@ modules:
         slug: timing
         title: High-resolution timing
         type: kata
-        status: locked
+        status: available
       - id: m11-02
         slug: main-loop
         title: The main loop & fixed timestep

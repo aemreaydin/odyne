@@ -1,4 +1,4 @@
-#+private
+#+private file
 package platform
 
 // Tutor-written conformance tests for the m10-01 platform window. They bind to the agreed
@@ -19,7 +19,8 @@ import win32 "core:sys/windows"
 import "engine:core/containers/handle_pool"
 
 // hwnd_of reaches into the pool for a window's native handle — test-only plumbing for
-// synthesizing OS-side actions. Returns nil if the handle doesn't resolve.
+// synthesizing OS-side actions. Returns nil if the handle doesn't resolve. (input_test.odin
+// carries its own file-private copy: test files are self-contained by convention.)
 hwnd_of :: proc(h: Window_Handle) -> win32.HWND {
 	ptr, err := handle_pool.get_ptr(&g_window_pool, h)
 	if err != .None {

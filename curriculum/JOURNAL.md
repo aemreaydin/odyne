@@ -16,6 +16,61 @@ lesson's measurement task.
 
 ---
 
+## 2026-07-24 — lesson-m10-02: input (build)
+
+- **Built:** `engine/platform/input.odin` + `input_windows.odin` — keyboard & mouse as a
+  frame-coherent snapshot with transition capture (mechanism C: per-slot
+  `{half_transitions: u8, ended_down: bool}`; counters and wheel reset at each `poll_events`
+  retire, levels and cursor persist — a sub-frame tap stays observable). Learner-designed
+  surface: `Key`/`Mouse_Button` enums (L/R-split modifiers, `.Unknown = 0` as ZII error
+  handling), `key_down/pressed/released` + `mouse_*`, `mouse_position` (signed client px),
+  `mouse_wheel` (f32 detents/frame), plus amendments `has_focus` and `set_window_title`
+  (wide `SetWindowTextW`, never the ANSI variant). Read model: snapshot + derived edges,
+  queue deferred (m10-01's forecast overturned — no consumer until a text/UI system).
+  Policies: autorepeat yields no edge _by construction_ (no level flip — lparam bit 30 never
+  read); `WM_KILLFOCUS` silent-clears levels+counters+wheel, releases held capture, cursor
+  persists; sys-keys recorded then fall through to `DefWindowProcW` (Alt+F4 lives); VK→Key
+  via `[256]Key` table with scancode/extended-bit L/R resolve; chord capture — `SetCapture`
+  first down / `ReleaseCapture` last up over a `bit_set` chord, `WM_CAPTURECHANGED` theft
+  reconciliation. Debugging gauntlet worth remembering: **sent-message reentrancy** —
+  `Release/SetCapture` deliver `WM_CAPTURECHANGED` synchronously _during_ the call, so
+  state-before-syscall ordering is what makes `holds_capture` a valid "did I initiate this?"
+  discriminator; the inverted handler branches were benign before the reorder and
+  edge-destroying after it (caught by a regressing tap test); a one-directional `bit_set`
+  (`+=` with no `-=`) made `card()==0` unreachable and capture unreleasable. 27 conformance
+  tests (PostMessageW-driven hidden windows), green · leak-clean · vet/strict-style clean;
+  test files now self-contained under `#+private file` (new project convention). Demo:
+  testbed title-bar readout (position + held-button chord + last key, values persisted /
+  strings rebuilt per frame / one temp `free_all` per frame); Esc converges with ✕ through
+  `set_should_close`. Spec delta capability: `platform-input`. Bench: `katas/input_pump_bench/`.
+- **Measured:** (tutor-run · `odin run -o:speed` · 2 runs, stable)
+  - **Empty pump, visible window: 184.3 ns/frame** — statistically identical to m10-01's
+    185 ns _with the input retire now inside it_: the snapshot bookkeeping is invisible at
+    frame scale.
+  - **Retire ≈ 6.7 ns/window** (isolated via the 1→4 hidden-window slope): zeroing ~136 B
+    of counters+wheel ≈ 2.5 cache lines of L1 stores. A window's entire input state is one
+    ~152 B struct.
+  - **Empty pump, hidden window: ≈ 9.2 ns/frame** — 20× cheaper than visible, same code.
+    Consistent with `PeekMessageW` skipping the kernel round-trip when the queue's wake
+    bits show nothing pending [unverified mechanism; the 9-vs-184 ns split is measured].
+    m10-01's "185 ns forever-cost" was a property of _visible-window queue state_, not of
+    the pump.
+  - **Flooded pump: `WM_MOUSEMOVE` ≈ 745 ns/msg · key down/up ≈ 2,113 ns/msg posted** (key
+    path includes `TranslateMessage` plus a synthesized-and-drained `WM_CHAR` per keydown).
+    Kernel message delivery dominates; odyne's decode is noise by comparison (see retire).
+  - **1000 Hz mouse @60 fps projection: ≈ 12.4 µs/frame = 0.075% of budget** — an upper
+    bound: posted floods don't coalesce, real hardware mouse-move messages do.
+  - **Queries: `key_down` ≈ 0.44 ns · `mouse_position` ≈ 0.36 ns** (10M iters) — same as
+    `should_close` (0.42) and the m03 handle kata (0.41): a pool resolve + a byte read.
+    The testbed's all-63-keys readout scan costs ~28 ns/frame.
+  - **Build: 1,231 ms median (3 clean builds) · 486,912 B** vs m10-01's 1,320 ms /
+    480,256 B → **+6,656 B (+1.4%)**, no compile-time regression, for the entire input
+    system.
+- **Takeaways:** <!-- [you] review findings + probe answers worth keeping -->
+  Great lesson, finally have an idea how input works and not relying on glfw
+- **Reflections:** <!-- [you] your own words: what was hard, what clicked, open questions -->
+  The half_transition and capture change took a while to understand but all in all a fun lesson
+
 ## 2026-07-22 — lesson-m10-01: win32-window (build)
 
 - **Built:** `engine/platform/window.odin` + `window_windows.odin` — odyne's first OS boundary

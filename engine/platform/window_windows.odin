@@ -19,6 +19,9 @@ Window_State :: struct {
 	hwnd:            win32.HWND,
 	size:            [2]i32, // client area
 	close_requested: bool,
+	input:           Input_State, // m10-02: per-window input snapshot
+	focused:         bool, // m10-02 amendment: keyboard focus as of the last poll
+	holds_capture:   bool,
 }
 
 @(private)
@@ -34,6 +37,8 @@ init :: proc(allocator := context.allocator) {
 
 	atom := register_class(hinstance)
 	assert(atom != 0, "register class shouldn't return 0")
+
+	init_vk_table()
 }
 
 // shutdown destroys any remaining windows, then frees the window system's state.
@@ -135,6 +140,10 @@ destroy_window :: proc(h: Window_Handle) -> Window_Error {
 // poll_events drains this thread's message queue without blocking — call once per
 // frame. All window state visible through the queries reflects the drained messages.
 poll_events :: proc() {
+	for &window_state in handle_pool.slice(&g_window_pool) {
+		begin_input_frame(&window_state)
+	}
+
 	msg: win32.MSG
 	for win32.PeekMessageW(&msg, nil, 0, 0, win32.PM_REMOVE) {
 		win32.TranslateMessage(&msg)
@@ -155,6 +164,34 @@ should_close :: proc(h: Window_Handle) -> bool {
 		return false
 	}
 	return window_state.close_requested
+}
+
+// has_focus reports whether `h` currently holds keyboard focus, as of the last
+// poll_events (WM_SETFOCUS / WM_KILLFOCUS bookkeeping). Invalid handle → false.
+has_focus :: proc(h: Window_Handle) -> bool {
+	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
+	if err != .None {
+		return false
+	}
+	return window_state.focused
+}
+
+set_should_close :: proc(h: Window_Handle, should_close: bool = true) -> bool {
+	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
+	if err != .None {
+		return false
+	}
+	window_state.close_requested = should_close
+	return window_state.close_requested
+}
+
+set_window_title :: proc(h: Window_Handle, title: string) {
+	window_state, err := handle_pool.get_ptr(&g_window_pool, h)
+	if err != .None {
+		return
+	}
+
+	win32.SetWindowTextW(window_state.hwnd, win32.utf8_to_wstring(title))
 }
 
 // client_size returns the window's current client area, or {0,0} on an invalid handle.
@@ -199,6 +236,27 @@ wndproc :: proc "system" (
 		return wm_destroy(hwnd)
 	case win32.WM_SIZE:
 		return wm_size(hwnd, msg, wparam, lparam)
+	case win32.WM_KEYDOWN,
+	     win32.WM_KEYUP,
+	     win32.WM_SYSKEYDOWN,
+	     win32.WM_SYSKEYUP,
+	     win32.WM_MBUTTONDOWN,
+	     win32.WM_MBUTTONUP,
+	     win32.WM_RBUTTONDOWN,
+	     win32.WM_RBUTTONUP,
+	     win32.WM_LBUTTONDOWN,
+	     win32.WM_LBUTTONUP,
+	     win32.WM_XBUTTONDOWN,
+	     win32.WM_XBUTTONUP,
+	     win32.WM_MOUSEMOVE,
+	     win32.WM_MOUSEWHEEL:
+		return wm_input(hwnd, msg, wparam, lparam)
+	case win32.WM_SETFOCUS:
+		return wm_set_focus(hwnd, msg, wparam, lparam)
+	case win32.WM_KILLFOCUS:
+		return wm_kill_focus(hwnd, msg, wparam, lparam)
+	case win32.WM_CAPTURECHANGED:
+		return wm_capture_changed(hwnd, msg, wparam, lparam)
 	case:
 		return win32.DefWindowProcW(hwnd, msg, wparam, lparam)
 	}
@@ -250,6 +308,83 @@ wm_size :: proc(
 
 	window_state.size = {i32(win32.LOWORD(lparam)), i32(win32.HIWORD(lparam))}
 	return 0
+}
+
+@(private = "file")
+wm_input :: proc(
+	hwnd: win32.HWND,
+	msg: win32.UINT,
+	wparam: win32.WPARAM,
+	lparam: win32.LPARAM,
+) -> win32.LRESULT {
+	window_state, ok := get_state_from_win(hwnd)
+	if !ok {
+		return win32.DefWindowProcW(hwnd, msg, wparam, lparam)
+	}
+
+	processed := handle_input_message(window_state, hwnd, msg, wparam, lparam)
+	if msg == win32.WM_SYSKEYDOWN || msg == win32.WM_SYSKEYUP {
+		return win32.DefWindowProcW(hwnd, msg, wparam, lparam)
+	}
+	return processed == true ? 0 : win32.DefWindowProcW(hwnd, msg, wparam, lparam)
+}
+
+@(private = "file")
+wm_set_focus :: proc(
+	hwnd: win32.HWND,
+	msg: win32.UINT,
+	wparam: win32.WPARAM,
+	lparam: win32.LPARAM,
+) -> win32.LRESULT {
+	window_state, ok := get_state_from_win(hwnd)
+	if !ok {
+		return win32.DefWindowProcW(hwnd, msg, wparam, lparam)
+	}
+
+	window_state.focused = true
+
+	return 0
+}
+
+@(private = "file")
+wm_kill_focus :: proc(
+	hwnd: win32.HWND,
+	msg: win32.UINT,
+	wparam: win32.WPARAM,
+	lparam: win32.LPARAM,
+) -> win32.LRESULT {
+	window_state, ok := get_state_from_win(hwnd)
+	if !ok {
+		return win32.DefWindowProcW(hwnd, msg, wparam, lparam)
+	}
+
+	if window_state.holds_capture {
+		win32.ReleaseCapture()
+	}
+	clear_input_states(window_state)
+	window_state.focused = false
+
+	return 0
+}
+
+@(private = "file")
+wm_capture_changed :: proc(
+	hwnd: win32.HWND,
+	msg: win32.UINT,
+	wparam: win32.WPARAM,
+	lparam: win32.LPARAM,
+) -> win32.LRESULT {
+	window_state, ok := get_state_from_win(hwnd)
+	if !ok {
+		return win32.DefWindowProcW(hwnd, msg, wparam, lparam)
+	}
+
+	if window_state.holds_capture {
+		clear_buttons(window_state)
+		return 0
+	} else {
+		return 0
+	}
 }
 
 @(private = "file")
