@@ -72,7 +72,7 @@ try {
 		if ($pkg.IsExecutable) {
 			$out = "build/$($pkg.Name).exe"
 			Write-Step "build $($pkg.Path) -> $out"
-			& odin build $pkg.Path @OdinFlags @OdinCollections "-out:$out"
+			& odin build $pkg.Path @OdinFlags @OdinCollections @OdinLinkFlags "-out:$out"
 		} else {
 			Write-Step "check $($pkg.Path)"
 			& odin check $pkg.Path @OdinFlags @OdinCollections '-no-entry-point'

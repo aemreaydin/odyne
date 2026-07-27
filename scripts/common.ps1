@@ -23,8 +23,23 @@ $OdinFlags = @(
 # Import collections; keep in sync with ols.json.
 $OdinCollections = @('-collection:engine=engine')
 
+# engine/platform links SDL3 through `vendor:sdl3`. On Windows the vendor bindings pull in
+# their own SDL3.lib and nothing extra is needed; everywhere else they link `system:SDL3`,
+# so the linker has to be told where Homebrew put it. Asking `brew --prefix` rather than
+# hardcoding /opt/homebrew keeps this working on Intel Macs (/usr/local) and Linuxbrew.
+$OdinLinkFlags = @()
+if (-not $IsWindows) {
+	$brewPrefix = & brew --prefix 2>$null
+	if ($LASTEXITCODE -eq 0 -and $brewPrefix) {
+		$OdinLinkFlags += "-extra-linker-flags:-L$brewPrefix/lib"
+	}
+}
+
 # Directories scanned for packages, relative to the repo root.
-$SourceRoots = @('engine', 'examples', 'katas')
+# `tests` holds the platform harness — a main() rather than @(test) procedures, because
+# SDL's video subsystem is main-thread-only on macOS and `odin test` always dispatches
+# onto a worker. It is a normal executable package, so it belongs in the build sweep.
+$SourceRoots = @('engine', 'examples', 'katas', 'tests')
 
 # Compiler artifacts land here (gitignored).
 $BuildDir = Join-Path $RepoRoot 'build'

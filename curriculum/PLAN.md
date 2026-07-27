@@ -35,9 +35,16 @@ the package-boundary discipline every later layer builds on.
 ### Phase 1 — Platform
 *Window & input → timing & main loop.*
 
-The first thing you can *see*: a Win32 window, real input, a high-resolution clock,
-and a fixed-timestep main loop. Small on purpose — the platform layer exists to be
-boring and correct.
+The first thing you can *see*: a window, real input, a high-resolution clock, and a
+fixed-timestep main loop. Small on purpose — the platform layer exists to be boring
+and correct.
+
+This phase was first built hand-rolled on Win32, then partly again on Cocoa, before
+being moved onto SDL3 in July 2026 (see the amendment in `curriculum.yaml`). What
+that migration made obvious is the point of the phase: `window.odin` and `input.odin`
+— the handle pool, the frame-coherent snapshot, the edge algebra — did not change a
+line. Swapping the OS underneath a seam without disturbing what sits above it is the
+seam working, and it is the same move Phase 5 makes again for the renderer.
 
 ### Phase 2 — Renderer I (Vulkan 2D)
 *Vulkan bootstrap → First triangle → GPU resources → 2D sprite renderer.*

@@ -16,6 +16,10 @@ bin/
 # Local agent settings
 .claude/settings.local.json
 
+# Offline reading packs — third-party docs/source downloaded per lesson, each under
+# its own licence. Regenerable; not part of odyne.
+curriculum/offline/
+
 # OS / editor noise
 Thumbs.db
 Desktop.ini

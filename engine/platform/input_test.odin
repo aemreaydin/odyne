@@ -1,525 +1,191 @@
 #+private file
 package platform
 
-// Tutor-written conformance tests for the m10-02 platform input system. They bind to the
-// agreed interface (design.md §Agreed interface) and trace to the platform-input spec
-// delta. Written RED against the stubs; the learner implements until green.
+// Tier 1 — the input state machine as PURE LOGIC. No pool, no handle, no window, no OS.
+// Runs on every platform under plain `odin test`, in parallel, with leak tracking:
 //
-// All windows are hidden. Tests synthesize user input by posting the real messages
-// straight to the hidden window's queue with PostMessageW — deterministic and
-// focus-independent (unlike SendInput, which targets whatever window the OS thinks is
-// focused). lparam layouts follow the WM_KEYDOWN reference: bits 16–23 scancode,
-// bit 24 extended (right Ctrl/Alt), bit 30 previous key state, bit 31 transition.
+//   odin test engine/platform -collection:engine=engine
 //
-// MUST run single-threaded (shared package state, per-thread Win32 queues):
-//   odin test engine/platform -collection:engine=engine -define:ODIN_TEST_THREADS=1
+// These used to fish a `^Window_State` out of the pool via a headless window, which made a
+// pure state machine look like it needed a window, a handle grammar and an initialised OS.
+// It never did — it needed an `Input_State`. Everything that genuinely needs a window (a
+// real OS event reaching the right window's state) moved to `tests/platform`, where it runs
+// on the main thread against a real window on both platforms.
+//
+// Note there is no `init()`, no `shutdown()` and no `Window_Handle` anywhere below. That
+// absence is the point: if a test here ever needs one, the seam has drifted.
 
-import win32 "core:sys/windows"
 import "core:testing"
-import "engine:core/containers/handle_pool"
 
-VK_A: win32.WPARAM : 0x41 // letters have no VK_ constant; A is its ASCII value
-VK_UNASSIGNED: win32.WPARAM : 0xE8 // documented-unassigned VK code
+@(test)
+test_edge_derivation_from_transition_counts :: proc(t: ^testing.T) {
+	// The pure derivation: two or more flips always contain both an up→down and a down→up;
+	// a single flip counts only in the direction it landed.
+	testing.expect(t, !was_pressed(Button_State{}), "zero value is neither pressed nor released")
+	testing.expect(t, !was_released(Button_State{}), "zero value is neither pressed nor released")
 
-LP_KEYDOWN: win32.LPARAM : 1 // repeat count 1, everything else 0
-LP_KEYDOWN_REPEAT: win32.LPARAM : 1 | (1 << 30) // previous-state flag: autorepeat
-LP_KEYUP: win32.LPARAM : 1 | (1 << 30) | (1 << 31) // prev down + transition up
-LP_EXTENDED: win32.LPARAM : 1 << 24 // right-hand Ctrl/Alt
-LP_ALT_CONTEXT: win32.LPARAM : 1 << 29 // context code: Alt held (sys-key messages)
+	testing.expect(t, was_pressed(Button_State{half_transitions = 1, ended_down = true}))
+	testing.expect(t, !was_released(Button_State{half_transitions = 1, ended_down = true}))
 
-// hwnd_of reaches into the pool for a window's native handle — test-only plumbing for
-// synthesizing OS-side actions. Returns nil if the handle doesn't resolve. (Deliberate
-// duplicate of window_test.odin's copy: test files are self-contained by convention.)
-hwnd_of :: proc(h: Window_Handle) -> win32.HWND {
-	ptr, err := handle_pool.get_ptr(&g_window_pool, h)
-	if err != .None {
-		return nil
-	}
-	return ptr.hwnd
-}
+	testing.expect(t, was_released(Button_State{half_transitions = 1, ended_down = false}))
+	testing.expect(t, !was_pressed(Button_State{half_transitions = 1, ended_down = false}))
 
-// pos_lparam packs signed client coordinates the way mouse messages carry them:
-// x in the low word, y in the high word, both signed 16-bit.
-pos_lparam :: proc(x, y: i16) -> win32.LPARAM {
-	return win32.LPARAM(u32(u16(y)) << 16 | u32(u16(x)))
-}
-
-// wheel_wparam packs a wheel delta (multiples/divisions of WHEEL_DELTA=120) into the
-// high word of wparam.
-wheel_wparam :: proc(delta: i16) -> win32.WPARAM {
-	return win32.WPARAM(u32(u16(delta)) << 16)
+	// A sub-frame tap: level round-tripped, both edges must survive.
+	testing.expect(t, was_pressed(Button_State{half_transitions = 2, ended_down = false}))
+	testing.expect(t, was_released(Button_State{half_transitions = 2, ended_down = false}))
 }
 
 @(test)
-test_input_key_level_and_press_edge :: proc(t: ^testing.T) {
-	init()
-	defer shutdown()
-	h, err := create_window({hidden = true})
-	testing.expect_value(t, err, Window_Error.None)
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
+test_key_level_and_press_edge :: proc(t: ^testing.T) {
+	input: Input_State
 
-	win32.PostMessageW(hwnd, win32.WM_KEYDOWN, VK_A, LP_KEYDOWN)
-	testing.expect(
-		t,
-		!key_down(h, .A),
-		"state is fixed at the pump — not observable before poll_events",
-	)
-
-	poll_events()
-	testing.expect(t, key_down(h, .A), "held key must report down after the pump")
-	testing.expect(t, key_pressed(h, .A), "first frame must report the press edge")
-	testing.expect(t, !key_released(h, .A), "no release happened")
-	testing.expect(t, !key_down(h, .B), "other keys must be untouched")
+	record_key(&input, .A, true)
+	testing.expect(t, input.keys[.A].ended_down, "recorded key must report down")
+	testing.expect(t, was_pressed(input.keys[.A]), "first frame must report the press edge")
+	testing.expect(t, !was_released(input.keys[.A]), "no release happened")
+	testing.expect(t, !input.keys[.B].ended_down, "other keys must be untouched")
 }
 
 @(test)
-test_input_press_edge_lasts_one_frame :: proc(t: ^testing.T) {
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
+test_press_edge_lasts_one_frame :: proc(t: ^testing.T) {
+	input: Input_State
 
-	win32.PostMessageW(hwnd, win32.WM_KEYDOWN, VK_A, LP_KEYDOWN)
-	poll_events()
-	poll_events() // empty frame: edge must retire, level must persist
+	record_key(&input, .A, true)
+	retire_input(&input) // empty frame: the edge retires, the level persists
 
-	testing.expect(t, key_down(h, .A), "level persists across frames while held")
-	testing.expect(t, !key_pressed(h, .A), "press edge must last exactly one frame")
+	testing.expect(t, input.keys[.A].ended_down, "level persists across frames while held")
+	testing.expect(t, !was_pressed(input.keys[.A]), "press edge must last exactly one frame")
 }
 
 @(test)
-test_input_release_edge :: proc(t: ^testing.T) {
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
+test_release_edge :: proc(t: ^testing.T) {
+	input: Input_State
 
-	win32.PostMessageW(hwnd, win32.WM_KEYDOWN, VK_A, LP_KEYDOWN)
-	poll_events()
-	win32.PostMessageW(hwnd, win32.WM_KEYUP, VK_A, LP_KEYUP)
-	poll_events()
+	record_key(&input, .A, true)
+	retire_input(&input)
+	record_key(&input, .A, false)
 
-	testing.expect(t, !key_down(h, .A), "released key must not report down")
-	testing.expect(t, key_released(h, .A), "release frame must report the release edge")
-	testing.expect(t, !key_pressed(h, .A), "no press this frame")
+	testing.expect(t, !input.keys[.A].ended_down, "released key must not report down")
+	testing.expect(t, was_released(input.keys[.A]), "release frame must report the release edge")
+	testing.expect(t, !was_pressed(input.keys[.A]), "no press this frame")
 
-	poll_events()
-	testing.expect(t, !key_released(h, .A), "release edge must last exactly one frame")
+	retire_input(&input)
+	testing.expect(t, !was_released(input.keys[.A]), "release edge must last exactly one frame")
 }
 
 @(test)
-test_input_subframe_tap_not_lost :: proc(t: ^testing.T) {
-	// THE Q1 test: down and up drain in the SAME poll. A level-only snapshot loses
-	// this tap (SDL documents that failure); half-transition counts must not.
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
+test_subframe_tap_is_not_lost :: proc(t: ^testing.T) {
+	// platform-input: "Sub-frame tap is not lost" — the reason the model counts transitions
+	// instead of storing a level.
+	input: Input_State
 
-	win32.PostMessageW(hwnd, win32.WM_KEYDOWN, VK_A, LP_KEYDOWN)
-	win32.PostMessageW(hwnd, win32.WM_KEYUP, VK_A, LP_KEYUP)
-	poll_events()
+	record_key(&input, .Space, true)
+	record_key(&input, .Space, false)
 
-	testing.expect(t, key_pressed(h, .A), "sub-frame tap must still report its press edge")
-	testing.expect(t, key_released(h, .A), "sub-frame tap must still report its release edge")
-	testing.expect(t, !key_down(h, .A), "the level honestly ended up")
+	testing.expect(t, !input.keys[.Space].ended_down, "the tap ended up")
+	testing.expect(t, was_pressed(input.keys[.Space]), "the press must survive the round trip")
+	testing.expect(t, was_released(input.keys[.Space]), "the release must survive the round trip")
 }
 
 @(test)
-test_input_repeat_produces_no_edge :: proc(t: ^testing.T) {
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
+test_repeat_produces_no_edge :: proc(t: ^testing.T) {
+	// platform-input: "Key repeat produces no edges" — no level flip, so no transition, by
+	// construction rather than by filtering.
+	input: Input_State
 
-	win32.PostMessageW(hwnd, win32.WM_KEYDOWN, VK_A, LP_KEYDOWN)
-	poll_events()
-	win32.PostMessageW(hwnd, win32.WM_KEYDOWN, VK_A, LP_KEYDOWN_REPEAT) // autorepeat
-	poll_events()
+	record_key(&input, .A, true)
+	retire_input(&input)
+	record_key(&input, .A, true) // autorepeat: already down
 
-	testing.expect(t, key_down(h, .A), "repeat: key still down")
-	testing.expect(t, !key_pressed(h, .A), "repeat must not produce a press edge")
+	testing.expect(t, input.keys[.A].ended_down, "repeat keeps the key down")
+	testing.expect(t, !was_pressed(input.keys[.A]), "repeat must not manufacture a press edge")
 }
 
 @(test)
-test_input_unmapped_vk_ignored :: proc(t: ^testing.T) {
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
+test_command_modifier_is_addressable :: proc(t: ^testing.T) {
+	// platform-input ADDED: "The primary command modifier is addressable".
+	input: Input_State
 
-	win32.PostMessageW(hwnd, win32.WM_KEYDOWN, VK_UNASSIGNED, LP_KEYDOWN)
-	win32.PostMessageW(hwnd, win32.WM_KEYDOWN, VK_A, LP_KEYDOWN)
-	poll_events()
-
-	testing.expect(t, key_down(h, .A), "positive guard: the mapped key beside it still lands")
-	testing.expect(t, !key_down(h, .Unknown), "unmapped VKs are ignored, not recorded on .Unknown")
-	testing.expect(t, !key_pressed(h, .Unknown), "no edge for unmapped VKs")
+	record_key(&input, .Left_Command, true)
+	testing.expect(t, input.keys[.Left_Command].ended_down, "the command modifier must be bindable")
+	testing.expect(t, !input.keys[.Right_Command].ended_down, "L and R must be independent")
 }
 
 @(test)
-test_input_left_right_ctrl_distinguished :: proc(t: ^testing.T) {
-	// wparam says only VK_CONTROL; the extended bit (lparam bit 24) says which side.
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
+test_mouse_buttons_level_and_edges :: proc(t: ^testing.T) {
+	input: Input_State
 
-	win32.PostMessageW(hwnd, win32.WM_KEYDOWN, win32.WPARAM(win32.VK_CONTROL), LP_KEYDOWN)
-	poll_events()
-	testing.expect(t, key_down(h, .Left_Ctrl), "non-extended VK_CONTROL is the left key")
-	testing.expect(t, !key_down(h, .Right_Ctrl), "right ctrl must not fire")
+	record_mouse_button(&input, .Left, true)
+	testing.expect(t, input.buttons[.Left].ended_down, "recorded button must report down")
+	testing.expect(t, was_pressed(input.buttons[.Left]), "press edge on the first frame")
+	testing.expect(t, !input.buttons[.Right].ended_down, "other buttons untouched")
 
-	win32.PostMessageW(
-		hwnd,
-		win32.WM_KEYDOWN,
-		win32.WPARAM(win32.VK_CONTROL),
-		LP_KEYDOWN | LP_EXTENDED,
-	)
-	poll_events()
-	testing.expect(t, key_down(h, .Right_Ctrl), "extended VK_CONTROL is the right key")
+	retire_input(&input)
+	record_mouse_button(&input, .Left, false)
+	testing.expect(t, !input.buttons[.Left].ended_down, "released button must not report down")
+	testing.expect(t, was_released(input.buttons[.Left]), "release edge must be observable")
 }
 
 @(test)
-test_input_syskey_records_alt :: proc(t: ^testing.T) {
-	// Alt arrives as a SYS message (context code set). It must be observable as a key;
-	// pass-through to DefWindowProcW is verified at the demo checkpoint (Alt+F4).
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
+test_cursor_position_signed_and_persistent :: proc(t: ^testing.T) {
+	input: Input_State
 
-	win32.PostMessageW(
-		hwnd,
-		win32.WM_SYSKEYDOWN,
-		win32.WPARAM(win32.VK_MENU),
-		LP_KEYDOWN | LP_ALT_CONTEXT,
-	)
-	poll_events()
+	record_cursor(&input, {120, 80})
+	testing.expect_value(t, input.cursor, [2]i32{120, 80})
 
-	testing.expect(t, key_down(h, .Left_Alt), "sys-key Alt must be observable as a key")
-	testing.expect(t, key_pressed(h, .Left_Alt), "with its press edge")
+	// Negative coordinates are legal while a drag is captured and must not become a large
+	// positive artifact.
+	record_cursor(&input, {-7, -3})
+	testing.expect_value(t, input.cursor, [2]i32{-7, -3})
+
+	retire_input(&input) // cursor persists across the retire boundary; only counters reset
+	testing.expect_value(t, input.cursor, [2]i32{-7, -3})
 }
 
 @(test)
-test_input_mouse_position :: proc(t: ^testing.T) {
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
+test_wheel_accumulates_then_resets :: proc(t: ^testing.T) {
+	// platform-input: one standard wheel notch = 1.0, accumulated within the frame, reset at
+	// the retire boundary. Fractions are legal — that is how a continuous device lands in
+	// this unit.
+	input: Input_State
 
-	win32.PostMessageW(hwnd, win32.WM_MOUSEMOVE, 0, pos_lparam(100, 50))
-	poll_events()
-	testing.expect_value(t, mouse_position(h), [2]i32{100, 50})
+	record_wheel(&input, 1.0)
+	record_wheel(&input, 0.5)
+	testing.expect_value(t, input.wheel, f32(1.5))
 
-	// Signed decode: capture/multi-monitor coordinates are legally negative. An
-	// unsigned LOWORD/HIWORD decode turns -10 into 65526.
-	win32.PostMessageW(hwnd, win32.WM_MOUSEMOVE, 0, pos_lparam(-10, -5))
-	poll_events()
-	testing.expect_value(t, mouse_position(h), [2]i32{-10, -5})
+	retire_input(&input)
+	testing.expect_value(t, input.wheel, f32(0))
+
+	record_wheel(&input, -0.25) // toward the user, sub-notch: a trackpad's shape
+	testing.expect_value(t, input.wheel, f32(-0.25))
 }
 
 @(test)
-test_input_mouse_button_edges :: proc(t: ^testing.T) {
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
+test_input_states_are_independent :: proc(t: ^testing.T) {
+	// Two Input_States never share storage. This is the portable half of "per-window input
+	// routing"; that an OS event reaches the RIGHT one is wiring, and is asserted against a
+	// real window in tests/platform.
+	a, b: Input_State
 
-	win32.PostMessageW(
-		hwnd,
-		win32.WM_LBUTTONDOWN,
-		win32.WPARAM(win32.MK_LBUTTON),
-		pos_lparam(10, 10),
-	)
-	poll_events()
-	testing.expect(t, mouse_down(h, .Left), "button down after the pump")
-	testing.expect(t, mouse_pressed(h, .Left), "with its press edge")
-	testing.expect(t, !mouse_down(h, .Right), "other buttons untouched")
+	record_key(&a, .W, true)
+	record_cursor(&b, {10, 20})
 
-	win32.PostMessageW(hwnd, win32.WM_LBUTTONUP, 0, pos_lparam(10, 10))
-	poll_events()
-	testing.expect(t, !mouse_down(h, .Left), "button up after release")
-	testing.expect(t, mouse_released(h, .Left), "with its release edge")
+	testing.expect(t, a.keys[.W].ended_down, "state A recorded the key")
+	testing.expect(t, !b.keys[.W].ended_down, "state B must be untouched")
+	testing.expect_value(t, a.cursor, [2]i32{0, 0})
+	testing.expect_value(t, b.cursor, [2]i32{10, 20})
 }
 
 @(test)
-test_input_wheel_accumulates_and_resets :: proc(t: ^testing.T) {
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
+test_transition_count_saturates :: proc(t: ^testing.T) {
+	// half_transitions is a u8 and must saturate, never wrap — a wrap to zero would erase an
+	// edge that really happened.
+	input: Input_State
+
+	for i in 0 ..< 600 {
+		record_key(&input, .A, i % 2 == 0)
 	}
 
-	// One notch plus a half-notch from a free-spinning wheel, same frame: 1.5 detents.
-	win32.PostMessageW(hwnd, win32.WM_MOUSEWHEEL, wheel_wparam(120), pos_lparam(0, 0))
-	win32.PostMessageW(hwnd, win32.WM_MOUSEWHEEL, wheel_wparam(60), pos_lparam(0, 0))
-	poll_events()
-	testing.expect_value(t, mouse_wheel(h), f32(1.5))
-
-	poll_events()
-	testing.expect_value(t, mouse_wheel(h), f32(0)) // accumulator resets each frame
+	testing.expect(t, was_pressed(input.keys[.A]), "an edge must survive saturation")
+	testing.expect(t, was_released(input.keys[.A]), "an edge must survive saturation")
 }
-
-@(test)
-test_input_killfocus_clears_silently :: proc(t: ^testing.T) {
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
-
-	win32.PostMessageW(hwnd, win32.WM_KEYDOWN, VK_A, LP_KEYDOWN)
-	win32.PostMessageW(
-		hwnd,
-		win32.WM_LBUTTONDOWN,
-		win32.WPARAM(win32.MK_LBUTTON),
-		pos_lparam(5, 5),
-	)
-	poll_events()
-	testing.expect(t, key_down(h, .A), "precondition: key held")
-	testing.expect(t, mouse_down(h, .Left), "precondition: button held")
-
-	win32.PostMessageW(hwnd, win32.WM_KILLFOCUS, 0, 0)
-	poll_events()
-
-	testing.expect(t, !key_down(h, .A), "focus loss must clear key levels")
-	testing.expect(t, !key_released(h, .A), "silently — no release edge")
-	testing.expect(t, !mouse_down(h, .Left), "focus loss must clear button levels")
-	testing.expect(t, !mouse_released(h, .Left), "silently — no release edge")
-}
-
-@(test)
-test_input_capture_follows_buttons :: proc(t: ^testing.T) {
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
-
-	win32.PostMessageW(
-		hwnd,
-		win32.WM_LBUTTONDOWN,
-		win32.WPARAM(win32.MK_LBUTTON),
-		pos_lparam(5, 5),
-	)
-	poll_events()
-	testing.expect(t, win32.GetCapture() == hwnd, "first button-down must take capture")
-
-	// Overlap a second button: capture must hold until the LAST button releases.
-	win32.PostMessageW(
-		hwnd,
-		win32.WM_RBUTTONDOWN,
-		win32.WPARAM(win32.MK_LBUTTON | win32.MK_RBUTTON),
-		pos_lparam(5, 5),
-	)
-	win32.PostMessageW(hwnd, win32.WM_LBUTTONUP, win32.WPARAM(win32.MK_RBUTTON), pos_lparam(5, 5))
-	poll_events()
-	testing.expect(t, win32.GetCapture() == hwnd, "capture holds while ANY button is down")
-
-	win32.PostMessageW(hwnd, win32.WM_RBUTTONUP, 0, pos_lparam(5, 5))
-	poll_events()
-	testing.expect(t, win32.GetCapture() == nil, "last button-up must release capture")
-}
-
-@(test)
-test_input_has_focus :: proc(t: ^testing.T) {
-	// Amendment: focus is observable. A hidden window never receives real focus, so the
-	// bookkeeping is driven by posted WM_SETFOCUS/WM_KILLFOCUS like every other test.
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
-
-	testing.expect(t, !has_focus(h), "hidden window starts unfocused")
-
-	win32.PostMessageW(hwnd, win32.WM_SETFOCUS, 0, 0)
-	poll_events()
-	testing.expect(t, has_focus(h), "focus gain must be observable after the pump")
-
-	win32.PostMessageW(hwnd, win32.WM_KILLFOCUS, 0, 0)
-	poll_events()
-	testing.expect(t, !has_focus(h), "focus loss must be observable after the pump")
-
-	zero: Window_Handle
-	testing.expect(t, !has_focus(zero), "invalid handle: false")
-}
-
-@(test)
-test_input_cursor_persists_after_focus_loss :: proc(t: ^testing.T) {
-	// Amendment: the focus-loss clear zeroes levels/counters/wheel but NOT the cursor —
-	// last-known position beats a fabricated {0,0}.
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
-
-	win32.PostMessageW(hwnd, win32.WM_MOUSEMOVE, 0, pos_lparam(100, 50))
-	poll_events()
-	testing.expect_value(t, mouse_position(h), [2]i32{100, 50})
-
-	win32.PostMessageW(hwnd, win32.WM_KILLFOCUS, 0, 0)
-	poll_events()
-	testing.expect_value(t, mouse_position(h), [2]i32{100, 50})
-}
-
-@(test)
-test_input_focus_loss_releases_capture :: proc(t: ^testing.T) {
-	// Amendment: WM_KILLFOCUS mid-chord releases capture (design.md §Amendment). Without
-	// the release, the OS keeps routing mouse input to a window whose bookkeeping says
-	// "no chord" — and since the flag and set are already cleared, no code path ever
-	// calls ReleaseCapture again: the capture leaks until something external steals it.
-	init()
-	defer shutdown()
-	h, _ := create_window({hidden = true})
-	hwnd := hwnd_of(h)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
-
-	win32.PostMessageW(
-		hwnd,
-		win32.WM_LBUTTONDOWN,
-		win32.WPARAM(win32.MK_LBUTTON),
-		pos_lparam(5, 5),
-	)
-	poll_events()
-	testing.expect(t, win32.GetCapture() == hwnd, "precondition: chord capture taken")
-
-	win32.PostMessageW(hwnd, win32.WM_KILLFOCUS, 0, 0)
-	poll_events()
-
-	testing.expect(t, win32.GetCapture() == nil, "focus loss mid-chord must release capture")
-	testing.expect(t, !mouse_down(h, .Left), "chord cleared")
-	testing.expect(t, !mouse_released(h, .Left), "silently — no release edge")
-}
-
-@(test)
-test_input_stolen_capture_reconciled :: proc(t: ^testing.T) {
-	// Amendment: the OS can reassign capture and notifies the loser via
-	// WM_CAPTURECHANGED (sent even on self-release; never re-grab in response). Losing
-	// capture ends the chord: button state clears silently, and the stale button-up
-	// arriving later must NOT ReleaseCapture — that would strip the new owner.
-	init()
-	defer shutdown()
-	w1, _ := create_window({title = "one", hidden = true})
-	w2, _ := create_window({title = "two", hidden = true})
-	hwnd1 := hwnd_of(w1)
-	hwnd2 := hwnd_of(w2)
-	if !testing.expect(t, hwnd1 != nil && hwnd2 != nil, "test plumbing: hwnds must resolve") {
-		return
-	}
-
-	win32.PostMessageW(
-		hwnd1,
-		win32.WM_LBUTTONDOWN,
-		win32.WPARAM(win32.MK_LBUTTON),
-		pos_lparam(5, 5),
-	)
-	poll_events()
-	testing.expect(t, win32.GetCapture() == hwnd1, "precondition: chord capture taken")
-	testing.expect(t, mouse_down(w1, .Left), "precondition: button held")
-
-	// The theft: WM_CAPTURECHANGED is SENT to w1's wndproc during this call.
-	win32.SetCapture(hwnd2)
-	poll_events()
-
-	testing.expect(t, !mouse_down(w1, .Left), "losing capture ends the chord: level cleared")
-	testing.expect(t, !mouse_released(w1, .Left), "silently — no release edge")
-	testing.expect(t, win32.GetCapture() == hwnd2, "never re-grab in response")
-
-	win32.PostMessageW(hwnd1, win32.WM_LBUTTONUP, 0, pos_lparam(5, 5))
-	poll_events()
-	testing.expect(t, win32.GetCapture() == hwnd2, "stale chord's up must not strip the new owner")
-
-	win32.ReleaseCapture() // test hygiene: don't leak capture into later tests
-}
-
-@(test)
-test_input_two_windows_independent :: proc(t: ^testing.T) {
-	init()
-	defer shutdown()
-	w1, _ := create_window({title = "one", hidden = true})
-	w2, _ := create_window({title = "two", hidden = true})
-	hwnd1 := hwnd_of(w1)
-	if !testing.expect(t, hwnd1 != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
-
-	win32.PostMessageW(hwnd1, win32.WM_KEYDOWN, VK_A, LP_KEYDOWN)
-	poll_events()
-
-	testing.expect(t, key_down(w1, .A), "target window sees its key")
-	testing.expect(t, !key_down(w2, .A), "other window's state must be untouched")
-}
-
-@(test)
-test_input_invalid_handles_safe :: proc(t: ^testing.T) {
-	init()
-	defer shutdown()
-	valid, err := create_window({hidden = true})
-	testing.expect_value(t, err, Window_Error.None)
-	hwnd := hwnd_of(valid)
-	if !testing.expect(t, hwnd != nil, "test plumbing: hwnd must resolve") {
-		return
-	}
-
-	// Positive guard: the input path works for a valid handle (a benign stub fails here).
-	win32.PostMessageW(hwnd, win32.WM_KEYDOWN, VK_A, LP_KEYDOWN)
-	poll_events()
-	testing.expect(t, key_down(valid, .A), "positive guard: valid handle sees the key")
-
-	zero: Window_Handle
-	junk := Window_Handle(0xDEAD_BEEF_F00D_CAFE)
-	for h in ([2]Window_Handle{zero, junk}) {
-		testing.expect(t, !key_down(h, .A), "invalid handle: key_down false")
-		testing.expect(t, !key_pressed(h, .A), "invalid handle: key_pressed false")
-		testing.expect(t, !key_released(h, .A), "invalid handle: key_released false")
-		testing.expect(t, !mouse_down(h, .Left), "invalid handle: mouse_down false")
-		testing.expect_value(t, mouse_position(h), [2]i32{0, 0})
-		testing.expect_value(t, mouse_wheel(h), f32(0))
-	}
-}
-

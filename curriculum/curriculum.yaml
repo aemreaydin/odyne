@@ -115,6 +115,26 @@ modules:
         title: Keyboard & mouse input
         type: build
         status: done
+      # Amendment 2026-07-27 — m10-03 withdrawn, engine/platform moved to SDL3.
+      #
+      # m10-03 "The platform seam & a Cocoa backend" was added 2026-07-24 (the learner had
+      # moved to a macOS machine where engine/platform did not compile) and is WITHDRAWN
+      # here, before ever reaching `done` — so no history is rewritten. The hand-rolled
+      # route was judged not worth its cost: a second OS backend bought repetition of a
+      # seam lesson already learned, not new insight. engine/platform now sits on SDL3 —
+      # one backend, every OS, no `#+build` files — done as a plain refactor outside the
+      # tutored-lesson workflow.
+      #
+      # m10-01 and m10-02 stay `done` and their titles stand as the historical record.
+      # What they taught is what SURVIVED the migration untouched: the handle pool, the
+      # frame-coherent snapshot, the half-transition edge algebra, and the seam itself —
+      # window.odin and input.odin did not change. Only the mechanism beneath them did,
+      # which is the seam doing its job.
+      #
+      # Preserved on branch `wip/platform`: the Win32 and Cocoa backends, their mechanism
+      # tests, the per-OS harness suites, and m10-03's lesson.md / design.md / spec deltas.
+      # Audio (m32-02, "WASAPI output") is deliberately NOT settled by this — SDL3 has an
+      # audio subsystem, but FMOD/Wwise remain open and that lesson is unchanged for now.
 
   - id: m11
     title: Timing & main loop

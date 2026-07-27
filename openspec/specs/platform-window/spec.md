@@ -38,11 +38,13 @@ The platform layer SHALL provide a per-frame event pump that drains all pending 
 - **THEN** the reported client size matches the new size
 
 ### Requirement: OS-type confinement
-No operating-system-specific type (native window handles, message structures, OS binding types) SHALL appear in any public platform signature, and OS binding packages SHALL be imported only within the platform layer. Multiple windows SHALL be independently addressable through their handles, and destroying one window SHALL NOT disturb the state or event routing of another.
+No operating-system-specific or windowing-toolkit type (native window handles, message or event structures, binding types) SHALL appear in any public platform signature, and the packages providing them SHALL be imported only within the platform layer. Multiple windows SHALL be independently addressable through their handles, and destroying one window SHALL NOT disturb the state or event routing of another.
+
+*(Amended 2026-07-27, SDL3 migration: "operating-system-specific" widened to cover a cross-platform toolkit too. An `SDL_Window` leaking through the seam is exactly as much a violation as an `HWND` was — the layering law does not care that the leak happens to be portable.)*
 
 #### Scenario: Upper layers compile against platform types only
 - **WHEN** an application uses the platform window API
-- **THEN** it compiles referencing only platform-defined types, with no OS binding import
+- **THEN** it compiles referencing only platform-defined types, with no windowing-toolkit import
 
 #### Scenario: Destroying one window leaves another intact
 - **WHEN** two windows exist and one is destroyed
@@ -58,6 +60,15 @@ Window queries SHALL answer benign zero values for invalid handles. Window mutat
 #### Scenario: Failed re-initialization leaves the system intact
 - **WHEN** the window system is initialized a second time without an intervening shutdown
 - **THEN** the call reports an initialization error and previously created windows remain open and functional
+
+### Requirement: Logical size and pixel size are distinct
+The platform layer SHALL report a window's client area in two distinct currencies: a LOGICAL size, in the units window geometry is requested and reasoned about in, and a FRAMEBUFFER size, in physical pixels — the value a swapchain is sized from. On a high-DPI display these differ; the framebuffer SHALL never be smaller than the logical size, SHALL be an integer multiple of it, and SHALL scale both axes by the same factor. Invalid handles SHALL report {0,0} for both.
+
+*(Added 2026-07-27. `framebuffer_size` was introduced as public API during the m10-03 seam work and never had a requirement of its own. The specific scale factor is a property of the display, not a contract — only the relationship is specified.)*
+
+#### Scenario: Framebuffer is an integer scale of the client area
+- **WHEN** a window is created at a given logical size and both sizes are queried
+- **THEN** the framebuffer size is a non-zero equal-axis integer multiple of the logical size
 
 ### Requirement: Headless-capable windows
 Window creation SHALL support a hidden mode producing a fully functional window — real native handle, message processing, size queries — that never appears on screen, so automated tests can exercise the full lifecycle headlessly.

@@ -64,16 +64,19 @@ The platform layer SHALL report the mouse position in signed client-relative pix
 - **WHEN** two wheel messages totaling one and a half detents are pumped in one frame
 - **THEN** that frame reports 1.5 detents and the next frame reports zero
 
-### Requirement: Mouse capture across drags
-The platform layer SHALL capture the mouse on the first button-down and release the capture on the last button-up, so that drags leaving the client area still deliver their motion and release messages to the originating window. If the system reassigns capture elsewhere mid-chord, the platform SHALL treat the chord as ended — clearing that window's button state silently — and SHALL NOT re-acquire capture or release the new owner's capture.
+### Requirement: Drags are not lost outside the client area
+A button chord begun inside a window SHALL continue to deliver motion and the eventual release to that window even while the cursor is outside its client area, so a drag that leaves the window still completes. Whether this is achieved by explicitly capturing the pointer or by relying on the windowing toolkit's own implicit capture is MECHANISM and unspecified. If the chord is broken by something other than a button release — the system reassigning the pointer, or focus loss — the platform SHALL treat the chord as ended and clear that window's button state silently, without release edges.
 
-#### Scenario: Capture follows the button chord
-- **WHEN** buttons go down and up in an overlapping sequence
-- **THEN** the thread's capture window is the originating window from the first down until the last up, and no window holds capture afterward
+*(Amended 2026-07-27, SDL3 migration. The prior wording specified Win32 `SetCapture`/`WM_CAPTURECHANGED` mechanism — "the thread's capture window" — which no longer names anything. SDL performs the implicit capture itself. The observable half is unchanged.)*
 
-#### Scenario: Stolen capture ends the chord
-- **WHEN** another window takes capture mid-chord and the stale button-up arrives later
-- **THEN** the original window's buttons clear without release edges and the new owner's capture is left intact
+#### Scenario: A drag leaving the window still completes
+- **WHEN** a button goes down inside a window and the cursor is then dragged outside it before releasing
+- **THEN** the originating window observes the motion and the release, not a button stuck down
+- **NOTE** verified at the demo checkpoint; a synthesized event cannot exercise the toolkit's real capture path
+
+#### Scenario: A broken chord ends silently
+- **WHEN** a chord is interrupted other than by its own button-up
+- **THEN** the window's buttons clear without producing release edges
 
 ### Requirement: Focus is observable
 The platform layer SHALL expose whether a window currently holds keyboard focus, as a frame-coherent query updated by the native focus-gain and focus-loss messages. Invalid handles SHALL report unfocused.
@@ -104,9 +107,15 @@ Input state SHALL be tracked per window: messages routed to one window SHALL NOT
 - **WHEN** a key-down message is posted to one of two open windows and events are pumped
 - **THEN** only that window reports the key down
 
-### Requirement: System keys observed, never consumed
-System-key messages (Alt-modified keys, F10) SHALL update platform input state AND be forwarded to default OS processing, so system commands (Alt+F4, Alt+Tab, menu activation) keep working.
+### Requirement: Modifier and system keys observed, never consumed
+Keys the OS also treats as system keys — Alt/Option, Command, F10 and the chords built on them — SHALL update platform input state while remaining available to default OS processing, so system commands (Alt+F4, Alt+Tab, Cmd+Q, Cmd+Tab, menu activation) keep working. The platform layer SHALL NOT swallow them.
 
-#### Scenario: Alt observable as a key
-- **WHEN** a system-key-down message for the Alt key is pumped
-- **THEN** the Alt key reports down through the platform API (default forwarding verified at the demo checkpoint: Alt+F4 still produces a close request)
+*(Amended 2026-07-27, SDL3 migration. The prior wording was written around Win32's separate `WM_SYSKEYDOWN` message class and its `DefWindowProc` forwarding rule. SDL delivers these as ordinary key events and does the forwarding itself; the requirement is now stated as the behaviour rather than the message.)*
+
+#### Scenario: Alt and Command observable as keys
+- **WHEN** the Alt/Option or Command key is pressed and events are pumped
+- **THEN** the corresponding platform key reports down, side-specifically
+
+#### Scenario: System chords still reach the OS
+- **WHEN** a system chord is pressed while the window has focus
+- **THEN** the OS still acts on it — verified at the demo checkpoint (Alt+F4 / Cmd+W still produce a close request rather than being swallowed)

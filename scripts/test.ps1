@@ -73,7 +73,7 @@ try {
 		# katas/handle_pool), so name the binary after the full path.
 		$out = "build/tests/$($pkg.Path -replace '[/\\]', '_').exe"
 		Write-Step "test $($pkg.Path)"
-		& odin test $pkg.Path @OdinFlags @OdinCollections "-out:$out" "-define:ODIN_TEST_THREADS=$Threads"
+		& odin test $pkg.Path @OdinFlags @OdinCollections @OdinLinkFlags "-out:$out" "-define:ODIN_TEST_THREADS=$Threads"
 		if ($LASTEXITCODE -ne 0) { $failed += $pkg.Path }
 		Write-Host ''
 	}
