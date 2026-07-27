@@ -25,9 +25,6 @@ import sdl "vendor:sdl3"
 handle_input_event :: proc(ev: sdl.Event) {
 	#partial switch ev.type {
 	case .KEY_DOWN, .KEY_UP:
-		// Autorepeat is a synthetic re-press of a key that never came up. Recording it
-		// would manufacture a press edge every repeat interval, so it is dropped: the key
-		// simply keeps reporting down.
 		if ev.key.repeat {
 			return
 		}
@@ -40,8 +37,6 @@ handle_input_event :: proc(ev: sdl.Event) {
 		}
 
 	case .MOUSE_MOTION:
-		// Client-relative and signed: a drag above or left of the window must read
-		// negative, not wrap into a large positive.
 		if ws, ok := state_from_window_id(ev.motion.windowID); ok {
 			record_cursor(&ws.input, {i32(ev.motion.x), i32(ev.motion.y)})
 		}
@@ -61,8 +56,6 @@ handle_input_event :: proc(ev: sdl.Event) {
 		}
 
 	case .MOUSE_WHEEL:
-		// SDL already reports y in detents as a float, positive away from the user —
-		// the platform contract verbatim, so there is no scaling to do here.
 		if ws, ok := state_from_window_id(ev.wheel.windowID); ok {
 			record_wheel(&ws.input, ev.wheel.y)
 		}
@@ -185,8 +178,6 @@ key_from_scancode :: proc "contextless" (sc: sdl.Scancode) -> Key {
 	case .DOWN:
 		return .Down
 
-	// Left and right modifiers are distinct keys, not one key plus a side flag — the
-	// platform-input contract requires each variant to be independently observable.
 	case .LSHIFT:
 		return .Left_Shift
 	case .RSHIFT:
@@ -199,7 +190,6 @@ key_from_scancode :: proc "contextless" (sc: sdl.Scancode) -> Key {
 		return .Left_Alt
 	case .RALT:
 		return .Right_Alt
-	// GUI is Command on macOS, Windows key elsewhere. Same physical key, same identity.
 	case .LGUI:
 		return .Left_Command
 	case .RGUI:

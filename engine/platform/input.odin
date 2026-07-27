@@ -229,5 +229,4 @@ clear_buttons :: proc(window_state: ^Window_State) {
 		button.half_transitions = 0
 	}
 	window_state.input.buttons_down = {}
-	// window_state.impl.holds_capture = false
 }
