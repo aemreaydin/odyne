@@ -46,4 +46,4 @@
 - [x] 6.3 [you] Write Takeaways + Reflections in curriculum/JOURNAL.md (your own words)
 - [x] 6.4 [tutor] Copy lesson.md → curriculum/modules/m11/m11-01-timing/LESSON.md
 - [x] 6.5 [tutor] Update curriculum/curriculum.yaml (m11-01 → done; m11-02 → available; clear active_change)
-- [ ] 6.6 [tutor] Commit the lesson; hand off to /opsx:archive
+- [x] 6.6 [tutor] Commit the lesson; hand off to /opsx:archive
