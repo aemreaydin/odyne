@@ -1,6 +1,6 @@
 package timing
 
-import "core:thread"
+import "base:intrinsics"
 import "core:time"
 
 // Ring capacity: ~1.7 s of history at 60 fps. [100]Duration is 800 B inline — the clock
@@ -202,7 +202,13 @@ wait_until :: proc(
 		if remaining > spin_margin {
 			time.sleep(min(remaining - spin_margin, SLEEP_CHUNK))
 		} else {
-			thread.yield()
+			// The tail is spun with a CPU hint (PAUSE / YIELD), not with a scheduler yield:
+			// `thread.yield()` leaves it to the scheduler when you come back, which on a busy
+			// machine can be a whole timeslice — the opposite of what a precision tail wants.
+			// cpu_relax keeps the core, de-pipelines the spin loop, and stops a spinning
+			// hyperthread from starving its sibling. The cost is that a large spin_margin now
+			// burns a core for that whole span, so keep the margin small.
+			intrinsics.cpu_relax()
 		}
 	}
 }

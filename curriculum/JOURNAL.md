@@ -32,7 +32,7 @@ lesson's measurement task.
   time) — a 100,000-frame session simulates in ~0.5 ms and only `wait_until` touches real time.
   `Frame_History` keeps `sum` on write (exact in integer ns — addition is invertible) and scans
   for min/max (a sliding window can't un-max). `wait_until(deadline, spin_margin)` is one loop
-  with one exit under `remaining <= 0`, chunked sleep + `thread.yield()` tail. 18 tests green ·
+  with one exit under `remaining <= 0`, chunked sleep + a spin tail. 18 tests green ·
   leak-clean · vet/strict-style clean. **Debugging gauntlet worth remembering:** a single
   `thread.yield()` where a *loop* was needed (returned before the deadline, and whether the test
   caught it depended on whether the last sleep happened to overshoot); using `sum` but dropping
@@ -84,6 +84,15 @@ lesson's measurement task.
     change was correct as *intent*, not as an optimisation. (First attempt at this measurement
     read 0.00 ns: `-o:speed` inlined the callee and hoisted a loop-invariant read. Needed
     `#force_no_inline` plus a data-dependent index — the same elision trap as m02-01.)
+  - **Amendment, same day (post-archive): the spin tail moved from `thread.yield()` to
+    `intrinsics.cpu_relax()`**, which also drops the `core:thread` dependency — the timing
+    package now needs only `core:time`, which matters for m11-02's graduation into `core`. All
+    the waiter figures above were measured with the *yield* tail; re-measured with the CPU hint,
+    pure spin at 16.7 ms went from **+99 µs mean / +2,939 µs max → +0.1 µs mean / +0.4 µs max**,
+    and `m=1 ms` max tightened from +1.4 µs to +0.2 µs. The 2.9 ms outlier was the mechanism
+    showing itself: `sched_yield` hands the core back and the scheduler decides when you return,
+    which is the opposite of what a precision tail wants. A syscall and an instruction hint are
+    not two flavours of the same thing.
 - **Takeaways:** <!-- [you] review findings + probe answers worth keeping -->
 Have always wanted to understand how time works and now I do
 - **Reflections:** <!-- [you] your own words: what was hard, what clicked, open questions -->
