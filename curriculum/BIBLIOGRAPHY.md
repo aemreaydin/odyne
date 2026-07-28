@@ -83,8 +83,8 @@ Never reuse or rename a key once a lesson cites it.
 - **Author:** Jason Gregory
 - **Type:** book
 - **Where:** ISBN 9781138035454 · https://www.gameenginebook.com/
-- **Verified:** 2026-07-19 (3e section numbers checked against the publisher's TOC page)
-- **Notes:** The course spine — engine layering, subsystems, the industry view in most lessons. **Citations follow 3e numbering (the learner's copy).** §6.2 memory and §7.2 resource manager match the 4e; the gameplay-systems chapters differ (3e §16.5 object references = 4e §17.5).
+- **Verified:** 2026-07-19 (3e section numbers checked against the publisher's TOC page) · ch.8 re-checked 2026-07-27
+- **Notes:** The course spine — engine layering, subsystems, the industry view in most lessons. **Citations follow 3e numbering (the learner's copy).** §6.2 memory and §7.2 resource manager match the 4e; the gameplay-systems chapters differ (3e §16.5 object references = 4e §17.5). Ch.8 "The Game Loop and Real-Time Simulation" numbering also matches across 3e/4e — §8.4 Abstract Timelines, §8.5 Measuring and Dealing with Time (checked 2026-07-27 against the author's TOC at gameenginebook.com/toc.html, which is now the 4e listing, cross-checked against a search-index listing of the 3e contents; O'Reilly's 3e contents page itself is fetch-blocked, so treat sub-subsection numbers inside §8.5 as [unverified]).
 
 ### GLFW
 - **Title:** GLFW — Input guide
@@ -109,6 +109,14 @@ Never reuse or rename a key once a lesson cites it.
 - **Where:** https://handmadehero.org (→ mollyrocket.com/handmade) · episode guide: https://guide.handmadehero.org/
 - **Verified:** 2026-06-10
 - **Notes:** Win32 platform layer, timing, and audio built from scratch on camera — phases 1 and 3. Project on hiatus; archives and guide remain live. Cite as `[HMH day 7]`.
+
+### MS-QPC
+- **Title:** Acquiring high-resolution time stamps
+- **Author:** Microsoft
+- **Type:** docs
+- **Where:** https://learn.microsoft.com/en-us/windows/win32/sysinfo/acquiring-high-resolution-time-stamps
+- **Verified:** 2026-07-27
+- **Notes:** The canonical treatment of high-resolution timing on Windows, and the clearest general statement of the hazards anywhere — m11's authority. Monotonicity: *"Is the performance counter monotonic (non-decreasing)? Yes. QPC does not go backward."* Independence from wall time: *"QPC is completely independent of the system time and UTC"* — unaffected by DST, leap seconds, time zones, or admin clock changes; it is a **difference clock**, not an absolute clock. Frequency *"is fixed at system boot and is consistent across all processors so you only need to query the frequency from QueryPerformanceFrequency as the application initializes, and then cache the result"* — and *don't* assume it reflects hardware: under a v1.0 hypervisor (or on newer Windows) it is *"fixed to 10 MHz"*. Rollover: *"Not less than 100 years from the most recent system boot."* Direct TSC: *"We strongly discourage using the RDTSC or RDTSCP processor instruction."* Conversion: the sample code's comment — *"To guard against loss-of-precision, we convert to microseconds \*before\* dividing by ticks-per-second"* — plus the three integer hazards (division loses the remainder, i64↔f64 loses mantissa bits, 64-bit multiply can overflow) and the rule *"delay these computations and conversions as long as possible to avoid compounding the errors."* Also `Precision = MAX[Resolution, AccessTime]` (TSC-based QPC access ≈30 ns; platform-timer fallback ≈0.8–1.0 µs), the ±1-tick quantization/ordering ambiguity across threads, and the ppm frequency-offset table (±10 ppm ⇒ ±36 ms/hour). Cite as `[MS-QPC]`.
 
 ### ND-FIBERS
 - **Title:** Parallelizing the Naughty Dog Engine Using Fibers (GDC 2015)
@@ -174,6 +182,14 @@ Never reuse or rename a key once a lesson cites it.
 - **Verified:** 2026-07-24
 - **Notes:** Runner configuration — `TEST_THREADS :: #config(ODIN_TEST_THREADS, 0)` (0 ⇒ one per core), `ODIN_TEST_TRACK_MEMORY` per-test leak checking, per-thread allocators. The runner *always* dispatches tests through a `thread.Pool` (`pool_init` → `pool_add_task(run_test_task)`): `ODIN_TEST_THREADS=1` means one **worker**, never the main thread — the constraint that makes AppKit windows untestable under `odin test`. Cite as `[ODIN-TEST runner]`.
 
+### ODIN-TIME
+- **Title:** Odin package documentation — `core:time`, plus the per-OS backends as shipped
+- **Author:** Odin team (Ginger Bill et al.)
+- **Type:** docs
+- **Where:** https://pkg.odin-lang.org/core/time/ · source read locally at `$(odin root)/core/time/{time.odin,time_unix.odin,time_windows.odin}` on `dev-2026-07:819fdc7a8`
+- **Verified:** 2026-07-27
+- **Notes:** Odin's two clocks are two *types*: `Time :: struct{_nsec: i64}` (wall clock, UNIX epoch, `now()`) and `Tick :: struct{_nsec: i64}` (*"monotonic time, useful for measuring durations"*, `tick_now()`) — the steady/system split enforced by the type system rather than by discipline. `Duration :: distinct i64` in nanoseconds with `Nanosecond`…`Hour` constants; `tick_diff/tick_since/tick_lap_time/tick_add`; `Stopwatch{running, _start_time, _accumulation}` for multi-run accumulation; `duration_seconds` splits `d/Second` and `d%Second` before touching `f64`. Backends: darwin `clock_gettime(CLOCK_MONOTONIC_RAW)`; windows `QueryPerformanceCounter` normalized to ns through a quotient/remainder `mul_div_u64` — the overflow-safe conversion [MS-QPC] prescribes, in the stdlib. `_sleep` is `Sleep(d/Millisecond)` on Windows (whole-ms truncation, so sub-ms sleeps become 0) and `nanosleep` on unix; `_yield` is `SwitchToThread`/`sched_yield`. `accurate_sleep` is textbook sleep-then-spin: repeat `sleep(1*Millisecond)` while the remaining time exceeds a **Welford-estimated** `mean + stddev` of *observed* sleep overshoot, then busy-`_yield` the tail. Cite as `[ODIN-TIME tick_now]` / `[ODIN-TIME accurate_sleep]`.
+
 ### RTR
 - **Title:** Real-Time Rendering, 4th Edition
 - **Author:** Tomas Akenine-Möller, Eric Haines, Naty Hoffman, Angelo Pesce, Michał Iwanicki, Sébastien Hillaire
@@ -186,9 +202,9 @@ Never reuse or rename a key once a lesson cites it.
 - **Title:** SDL3 wiki — SDL_GetKeyboardState · SDL_KeyboardEvent · SDL_Scancode · SDL_CreateWindow · SDL_PushEvent
 - **Author:** SDL project
 - **Type:** docs
-- **Where:** https://wiki.libsdl.org/SDL3/SDL_GetKeyboardState · https://wiki.libsdl.org/SDL3/SDL_KeyboardEvent · https://wiki.libsdl.org/SDL3/SDL_Scancode · https://wiki.libsdl.org/SDL3/SDL_CreateWindow · https://wiki.libsdl.org/SDL3/SDL_PushEvent
-- **Verified:** 2026-07-22 · scope widened 2026-07-27
-- **Notes:** Was m10-02's read-model reference; **since 2026-07-27 it is odyne's actual platform backend** (`engine/platform/window_sdl.odin`, `input_sdl.odin`, via `vendor:sdl3`). Ships BOTH input read models side by side: a scancode-indexed snapshot array updated by the event pump (with the documented lost-tap caveat: press+release before the pump "will never show up"), and an event queue whose key events carry `down` + `repeat` flags — odyne uses the queue, because the lost-tap caveat is exactly what the half-transition counter exists to defeat. `SDL_Scancode` is USB HID usage page 0x07 — physical key identity, layout-independent, which is what WASD needs. `SDL_PushEvent` puts a synthetic event on the same queue the OS writes to, which is what made the input WIRING tier portable (`tests/platform/suite_input_wiring.odin`) after the per-OS message-injection suites were retired. Cite as `[SDL SDL_GetKeyboardState]`.
+- **Where:** https://wiki.libsdl.org/SDL3/SDL_GetKeyboardState · https://wiki.libsdl.org/SDL3/SDL_KeyboardEvent · https://wiki.libsdl.org/SDL3/SDL_Scancode · https://wiki.libsdl.org/SDL3/SDL_CreateWindow · https://wiki.libsdl.org/SDL3/SDL_PushEvent · https://wiki.libsdl.org/SDL3/SDL_GetTicksNS · https://wiki.libsdl.org/SDL3/SDL_DelayNS · https://wiki.libsdl.org/SDL3/SDL_DelayPrecise
+- **Verified:** 2026-07-22 · scope widened 2026-07-27 (platform backend) · timing pages verified 2026-07-27
+- **Notes:** Was m10-02's read-model reference; **since 2026-07-27 it is odyne's actual platform backend** (`engine/platform/window_sdl.odin`, `input_sdl.odin`, via `vendor:sdl3`). Ships BOTH input read models side by side: a scancode-indexed snapshot array updated by the event pump (with the documented lost-tap caveat: press+release before the pump "will never show up"), and an event queue whose key events carry `down` + `repeat` flags — odyne uses the queue, because the lost-tap caveat is exactly what the half-transition counter exists to defeat. `SDL_Scancode` is USB HID usage page 0x07 — physical key identity, layout-independent, which is what WASD needs. `SDL_PushEvent` puts a synthetic event on the same queue the OS writes to, which is what made the input WIRING tier portable (`tests/platform/suite_input_wiring.odin`) after the per-OS message-injection suites were retired. **Timing (m11):** `Uint64 SDL_GetTicksNS(void)` returns *"the number of nanoseconds since the SDL library initialized"* (thread-safe, since 3.2.0) — an app-relative monotonic origin, unlike `core:time`'s boot-relative one; `void SDL_DelayNS(Uint64 ns)` *"waits at least the specified time, but possibly longer due to OS scheduling"*; `void SDL_DelayPrecise(Uint64 ns)` *"will attempt to wait as close to the requested time as possible, busy waiting if necessary, but could return later due to OS scheduling"* — SDL's own sleep-then-spin, the same shape as [ODIN-TIME accurate_sleep]. Cite as `[SDL SDL_GetKeyboardState]` / `[SDL SDL_DelayPrecise]`.
 
 ### SOKOL
 - **Title:** sokol — `sokol_app.h`, the cross-platform application wrapper

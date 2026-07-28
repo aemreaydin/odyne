@@ -16,6 +16,79 @@ lesson's measurement task.
 
 ---
 
+## 2026-07-28 — lesson-m11-01: timing (kata)
+
+- **Built:** `katas/timing/` — a monotonic **frame clock**, a fixed-capacity **frame-time
+  history**, and a **deadline waiter**, on `core:time` (chosen over SDL3 so timing stays
+  `core`-legal for m11-02's graduation). `Frame_Clock` holds `origin` (written once) + `prev`,
+  and derives `elapsed = now - origin` — never `+= dt`; `raw_dt` keeps the pre-clamp delta so a
+  hitch stays observable while `dt` carries the clamp policy (`max_dt` threshold, `clamp_dt`
+  substitute, `max_dt <= 0` disables). `clock_init` **is** the start of frame 0, which removes
+  the first-frame-dt special case and any `started` flag; `dt == 0` is legal by contract.
+  `frame_deadline` = `origin + (frame_index+1)*period` — an absolute grid, so pacing error is
+  corrected rather than accumulated. **Injection by parameter:** `frame_start(clock, now)` takes
+  the caller's clock read, so the whole state machine is arithmetic the 18 tests drive with
+  fabricated timestamps (12 h fake uptime, so nothing can mistake a timestamp for an elapsed
+  time) — a 100,000-frame session simulates in ~0.5 ms and only `wait_until` touches real time.
+  `Frame_History` keeps `sum` on write (exact in integer ns — addition is invertible) and scans
+  for min/max (a sliding window can't un-max). `wait_until(deadline, spin_margin)` is one loop
+  with one exit under `remaining <= 0`, chunked sleep + `thread.yield()` tail. 18 tests green ·
+  leak-clean · vet/strict-style clean. **Debugging gauntlet worth remembering:** a single
+  `thread.yield()` where a *loop* was needed (returned before the deadline, and whether the test
+  caught it depended on whether the last sleep happened to overshoot); using `sum` but dropping
+  the `count == 0` guard — integer divide-by-zero is UB, and on arm64 it was a hard
+  `Unhandled_Trap` in the empty-history test; an `assert(raw_dt > 0)` that outlawed the
+  contract's legal zero-length frame. Two of the three were **platform-shaped**: a green suite is
+  evidence about this OS and arch, not about the contract. Interface amendment during review: the
+  read-only queries take `^Frame_Clock`/`^Frame_History` — an 888 B struct was being copied to
+  read 8 bytes of it. No engine spec delta: m11-02 graduates this into the engine.
+  Bench: `katas/timing_bench/`.
+- **Measured:** (tutor-run · `odin run -o:speed` · macOS arm64, `CLOCK_MONOTONIC_RAW`)
+  - **`time.tick_now()` ≈ 16.7 ns/call** (10 M reads) — firmly the TSC-class pole, not the
+    0.8–1.0 µs platform-timer pole [MS-QPC]. 0.0001% of a 60 fps frame per read; ~60,000 reads
+    per millisecond of spinning. One read per frame is free; ten thousand (a read per entity)
+    would be 167 µs ≈ 1% of the frame.
+  - **Sleep overshoot is PROPORTIONAL, not a constant** — `time.sleep` on darwin returned
+    **+238 µs on a 1 ms request (24%), +1.16 ms on 5 ms (23%), +2.1–4.5 ms on 16.7 ms
+    (12–27%)**, and the 16.7 ms figure swung by 2× across runs. This is the number that decides
+    limiter design: a *fixed* margin cannot work if the error scales with the request.
+  - **Waiter comparison** (mean overshoot, 30 trials, at 1 / 5 / 16.7 ms):
+    `time.accurate_sleep` +0.1 / +0.2 / +2.7 µs · **`wait_until` m=1 ms +0.1 / +0.1 / +0.2 µs** ·
+    `wait_until` m=0 (sleep-only) +256 / +21 / +103 µs · pure spin +0.1 / +0.1 / +99 µs.
+    Sleep-then-spin with a 1 ms margin **matches or beats the stdlib's adaptive estimator** at
+    every duration, at a fraction of its complexity — and pure spinning is *not* reliably better
+    (one 16.7 ms spin trial got preempted for +2.9 ms: burning a core buys nothing the scheduler
+    won't take back).
+  - **Chunking is load-bearing, and the tutor got this wrong.** The tutor's refactor replaced N
+    margin-sized sleeps with one big sleep — measured **+4.9 ms mean overshoot at a 16.7 ms wait
+    (29%)**, a ~25,000× regression, because a 15.7 ms sleep overshoots by ~30% and blows past the
+    deadline before the spin phase gets a turn. Restoring chunked sleep (`min(remaining - margin,
+    1 ms)`) inside the one-loop structure: back to +0.2 µs. Saving ~15 syscalls at ~1 µs each to
+    lose 4.9 ms of precision is a 5,000:1 bad trade. Measure, then optimise.
+  - **Drift over 100,000 frames (27.8 min of simulated time):** derived `now - origin`
+    **error 0.000 ms (exact)** · accumulated in f64 **+0.054 ms** · accumulated in f32
+    **+1,989.9 ms — two full seconds**. f32 absolute time is unusable: at 1666 s the ULP is
+    ~122 µs, so every `+= dt` rounds.
+  - **The tick→ns overflow point:** `ticks * 1e9` overflows i64 above **9,223,372,036 ticks** —
+    **15.4 minutes** of uptime at a 10 MHz counter (the hypervisor-fixed QPC frequency) and
+    **9.2 seconds** on an Arm 1 GHz system counter [MS-QPC]. `intrinsics.overflow_mul` confirms
+    the wrap; the stdlib's quotient/remainder split returns the right answer at the same input.
+  - **Per-frame cost:** `frame_start` (incl. history push) **5.1 ns** · `history_average`
+    **0.30 ns** (O(1) via `sum`) · `history_min`/`max` **12.5 ns** each (scanning 100 `i64` =
+    800 B in 12.5 ns ≈ 64 GB/s — vectorised and L1-resident). A frame that ticks the clock and
+    reads all three stats: **30.5 ns = 0.0002% of a 60 fps budget.** The `sum` fix bought 12 ns;
+    the real argument for it was never speed but not maintaining state nobody reads.
+  - **`size_of(Frame_Clock)` = 888 B** (824 B of it history). Passing it by value to read one
+    field cost 0.91 ns vs 0.92 ns by pointer — i.e. **unmeasurable at this size**, because the
+    ABI passes large aggregates by reference anyway and the callee never mutates. The pointer
+    change was correct as *intent*, not as an optimisation. (First attempt at this measurement
+    read 0.00 ns: `-o:speed` inlined the callee and hoisted a loop-invariant read. Needed
+    `#force_no_inline` plus a data-dependent index — the same elision trap as m02-01.)
+- **Takeaways:** <!-- [you] review findings + probe answers worth keeping -->
+Have always wanted to understand how time works and now I do
+- **Reflections:** <!-- [you] your own words: what was hard, what clicked, open questions -->
+Good and fun milestone all around
+
 ## 2026-07-24 — lesson-m10-02: input (build)
 
 - **Built:** `engine/platform/input.odin` + `input_windows.odin` — keyboard & mouse as a

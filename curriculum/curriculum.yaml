@@ -145,12 +145,12 @@ modules:
         slug: timing
         title: High-resolution timing
         type: kata
-        status: available
+        status: done
       - id: m11-02
         slug: main-loop
         title: The main loop & fixed timestep
         type: build
-        status: locked
+        status: available
 
   # ── Phase 2 — Renderer I (Vulkan 2D) ───────────────────────────────────
   - id: m20
