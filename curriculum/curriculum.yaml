@@ -162,12 +162,24 @@ modules:
         slug: vulkan-mental-model
         title: The Vulkan mental model
         type: concept
-        status: available
+        status: done
+      # Amendment 2026-07-29 — m20-02 scope widened, during m20-01, at the learner's
+      # direction: the renderer must "keep track of the capabilities to use modern vulkan
+      # and fallback if not supported", and lessons must "always be talking about modern
+      # vulkan at first, but always keep the fallback available for platforms".
+      #
+      # m20-01 therefore teaches the capability model (four axes, query-vs-enable,
+      # branch-on-capability-never-on-platform, the three fallback shapes) and commits
+      # m20-02 to building the capability record as part of device creation. The binding
+      # constraints are recorded in m20-01's design.md §Constraints carried into m20-02.
+      # Kept in m20-02 rather than given its own lesson because capability resolution is a
+      # product of device selection, not a separate step — you cannot pick a device without
+      # asking what it can do.
       - id: m20-02
         slug: instance-device
-        title: Instance, device, queues
+        title: Instance, device, queues & the capability record
         type: build
-        status: locked
+        status: available
       - id: m20-03
         slug: swapchain
         title: The swapchain

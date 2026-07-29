@@ -142,6 +142,22 @@ Never reuse or rename a key once a lesson cites it.
 - **Verified:** 2026-06-10
 - **Notes:** Win32 platform layer, timing, and audio built from scratch on camera — phases 1 and 3. Project on hiatus; archives and guide remain live. Cite as `[HMH day 7]`. Days relevant so far: **day 10** "QueryPerformanceCounter and RDTSC" (wall-clock vs processor time, the inline `(1000*(counter - last_counter)) / freq` conversion); **day 18** "Enforcing a Video Frame Rate" (verified 2026-07-28) — why an enforced frame rate is necessary, the frame computation/display timeline, variable-refresh monitors, "Casey's game loop design overview", *"Looping to ensure we are within the targetSecondsPerFrame"*, giving time back with sleep, and *"Setting the Windows scheduler granularity with timeBeginPeriod()"* — the same limiter m11-02 builds, on camera, with the same [MS-TIMEPERIOD] caveat.
 
+### KHR-GUIDE
+- **Title:** Vulkan Guide (Khronos official)
+- **Author:** Khronos Group
+- **Type:** docs
+- **Where:** https://docs.vulkan.org/guide/latest/index.html · https://docs.vulkan.org/guide/latest/what_is_vulkan.html · https://docs.vulkan.org/guide/latest/portability_initiative.html · https://docs.vulkan.org/guide/latest/vulkan_release_summary.html · https://docs.vulkan.org/guide/latest/enabling_features.html
+- **Verified:** 2026-07-29 (all five pages)
+- **Notes:** Khronos's own orientation guide — distinct from [VKGUIDE] (Victor Blanco's tutorial); this one is normative-adjacent prose sitting beside the spec on the same site, organized as *Logistics* / *Using Vulkan* / *When and Why to use Extensions*. The definition m20-01 opens on: Vulkan is *"a new generation graphics and compute API that provides high-efficiency, cross-platform access to modern GPUs used in a wide variety of devices from PCs and consoles to mobile phones and embedded platforms"*, and the framing that matters more — *"Vulkan is not a direct replacement for OpenGL, but rather an explicit API that allows for more explicit control of the GPU"*, which *"puts more work and responsibility into the application. Not every developer will want to make that extra investment, but those that do so correctly can find power and performance improvements."* The Portability Initiative page defines that effort as *"an effort inside the Khronos Group to develop resources to define and evolve the subset of Vulkan capabilities that can be made universally available at native performance levels across all major platforms"* (it links the provisional extension but does not itself specify the enable rule — that is [VKPORT]). **Release Summary (m20-01, capability model):** the authority on **promotion to core** — *"Each minor release version of Vulkan promoted a different set of extension to core. This means that it's no longer necessary to enable an extensions to use it's functionality if the application requests at least that Vulkan version (given that the version is supported by the implementation)"*; `VK_KHR_dynamic_rendering` and `VK_KHR_synchronization2` were promoted in **1.3**, `VK_KHR_timeline_semaphore` and `VK_KHR_buffer_device_address` in **1.2**. **Enabling Features (m20-01/m20-02):** the query-then-enable asymmetry — query with `vkGetPhysicalDeviceFeatures` *or* `vkGetPhysicalDeviceFeatures2` (the latter taking a `pNext` chain so extension and newer-core feature structs are filled in the same call), but *"all features must be enabled at `VkDevice` creation time inside the `VkDeviceCreateInfo` struct"*: core-1.0 features via `pEnabledFeatures`, everything else by chaining `VkPhysicalDeviceFeatures2` onto `VkDeviceCreateInfo.pNext`. Supported is not the same as on. Cite as `[KHR-GUIDE What is Vulkan]` / `[KHR-GUIDE Portability]` / `[KHR-GUIDE Release Summary]` / `[KHR-GUIDE Enabling Features]`.
+
+### MOLTENVK
+- **Title:** MoltenVK — Vulkan Portability Implementation
+- **Author:** Khronos Group / The Brenwill Workshop
+- **Type:** code
+- **Where:** https://github.com/KhronosGroup/MoltenVK
+- **Verified:** 2026-07-29
+- **Notes:** The Vulkan implementation odyne actually runs on, the macOS dev machine having no native Vulkan driver: *"MoltenVK is a layered implementation of Vulkan 1.4 graphics and compute functionality, that is built on Apple's Metal graphics and compute framework"* — a translation layer, not a driver, and *"a key component of the Khronos Vulkan Portability Initiative."* It is not fully spec-compliant by construction (Metal cannot express all of Vulkan), which is exactly why it ships [VKPORT]'s `VK_KHR_portability_subset`. The loader consequence, stated by MoltenVK itself: *"when using the Vulkan Loader from the Vulkan SDK to run MoltenVK on macOS, the Vulkan Loader will only include MoltenVK VkPhysicalDevices in the list returned by vkEnumeratePhysicalDevices() if the VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR flag is enabled in vkCreateInstance()"* — i.e. forget the flag and the machine appears to have no GPU at all. Cite as `[MOLTENVK]`.
+
 ### MS-QPC
 - **Title:** Acquiring high-resolution time stamps
 - **Author:** Microsoft
@@ -207,12 +223,13 @@ Never reuse or rename a key once a lesson cites it.
 - **Notes:** The stdlib's Win32 bindings — 1000+ types (`HWND`, `WNDCLASSEXW`, `MSG`), 6000+ constants (`WS_*`, `WM_*`), user32/kernel32 procs — no hand-written foreign blocks needed for m10's platform layer.
 
 ### ODIN-SRC
-- **Title:** Odin compiler source — `src/build_settings.cpp`, `src/parser.cpp`
+- **Title:** Odin source tree — compiler (`src/build_settings.cpp`, `src/parser.cpp`) and vendor bindings (`vendor/vulkan/`)
 - **Author:** Odin team (Ginger Bill et al.)
 - **Type:** code
-- **Where:** https://github.com/odin-lang/Odin/blob/master/src/build_settings.cpp · https://github.com/odin-lang/Odin/blob/master/src/parser.cpp
-- **Verified:** 2026-07-24
-- **Notes:** The authority for compiler behaviour the prose docs don't cover. `is_excluded_target_filename` (build_settings.cpp) is the whole file-suffix rule: strip the extension, take the **last** underscore-delimited segment and the one before it, and match them against the target OS/arch — so `foo_darwin.odin`, `foo_windows_amd64.odin` and `foo_amd64_windows.odin` are all gated, while a tag any earlier in the name (`foo_windows_test.odin`) is just a name and the file always compiles. `parse_build_tag` (parser.cpp) handles `#+build`; parser.cpp:5174 is the compiler telling you to "Prefer using the file suffixes (e.g. foo_windows.odin) or '#+build' tags" instead of `when`-guarded imports. Cite as `[ODIN-SRC is_excluded_target_filename]`.
+- **Where:** https://github.com/odin-lang/Odin/blob/master/src/build_settings.cpp · https://github.com/odin-lang/Odin/blob/master/src/parser.cpp · https://github.com/odin-lang/Odin/tree/master/vendor/vulkan
+- **Verified:** 2026-07-24 · scope widened to `vendor/` 2026-07-29, `vendor/vulkan` read in the local install (Homebrew `odin` dev-2026-07:819fdc7a8)
+- **Notes:** The authority for compiler and vendor-binding behaviour the prose docs don't cover. **`vendor/vulkan` (m20):** the bindings contain **no `foreign import`** — every Vulkan entry point is a mutable global procedure variable, filled in at runtime. `procedures.odin` exposes the loader tiers as an overload set, `load_proc_addresses :: proc{load_proc_addresses_global, load_proc_addresses_instance, load_proc_addresses_device, load_proc_addresses_device_vtable, load_proc_addresses_custom}` — global (bootstrapped from a `vkGetInstanceProcAddr` pointer), then instance, then device, mirroring the loader's own dispatch-table tiers ([VKLOADER]). Consequence for the build: linking Vulkan needs no linker flags at all, unlike `vendor:sdl3`. Cite as `[ODIN-SRC vendor/vulkan/procedures.odin]`.
+- **Compiler notes:** `is_excluded_target_filename` (build_settings.cpp) is the whole file-suffix rule: strip the extension, take the **last** underscore-delimited segment and the one before it, and match them against the target OS/arch — so `foo_darwin.odin`, `foo_windows_amd64.odin` and `foo_amd64_windows.odin` are all gated, while a tag any earlier in the name (`foo_windows_test.odin`) is just a name and the file always compiles. `parse_build_tag` (parser.cpp) handles `#+build`; parser.cpp:5174 is the compiler telling you to "Prefer using the file suffixes (e.g. foo_windows.odin) or '#+build' tags" instead of `when`-guarded imports. Cite as `[ODIN-SRC is_excluded_target_filename]`.
 
 ### ODIN-TEST
 - **Title:** Odin package documentation — `core:testing` (the `@(test)` runner)
@@ -283,16 +300,48 @@ Never reuse or rename a key once a lesson cites it.
 - **Author:** Victor Blanco
 - **Type:** docs
 - **Where:** https://vkguide.dev/
-- **Verified:** 2026-06-10
-- **Notes:** Practical Vulkan 1.3 engine-style bring-up (dynamic rendering) — phase 2 backbone. Cite as `[VKGUIDE ch.1]`.
+- **Verified:** 2026-06-10 · chapter structure + philosophy re-verified 2026-07-29
+- **Notes:** Practical Vulkan 1.3 engine-style bring-up — phase 2 backbone. Structure as of 2026-07-29: *Introduction* (API overview + libraries), *ch.0* project setup, *ch.1* initialization and render loop to a clear colour, *ch.2* compute shaders and drawing, *ch.3* mesh drawing through the graphics pipeline, *ch.4* textures and descriptor-set management, *ch.5* glTF scene loading and optimized rendering — the same arc as m20→m23, which is why it is the backbone. Uses **dynamic rendering, not render passes**, deliberately: *"so that it can act as a better base code for a game engine."* Aims to *"understand Vulkan correctly, and act as a stepping stone for then working in your own projects"*, and assumes prior 3D graphics experience — it *"will not explain 3d rendering basics such as linear algebra math."* Cite as `[VKGUIDE ch.1]`.
+
+### VKLOADER
+- **Title:** Architecture of the Vulkan Loader Interfaces
+- **Author:** Khronos Group (Vulkan-Loader project)
+- **Type:** docs
+- **Where:** https://github.com/KhronosGroup/Vulkan-Loader/blob/main/docs/LoaderInterfaceArchitecture.md
+- **Verified:** 2026-07-29
+- **Notes:** Why there is a `libvulkan` between the application and the driver at all, and the authority for m20-01's three-layer picture. The loader *"is critical to managing the proper dispatching of Vulkan functions to the appropriate set of layers and drivers"*; drivers are ICDs — *"Vulkan allows multiple ICDs each supporting one or more devices. Each of these devices is represented by a Vulkan VkPhysicalDevice object"*; layers are *"optional components that augment the Vulkan development environment. They can intercept, evaluate, and modify existing Vulkan functions on their way from the application down to the drivers and back up"*, inserted into call chains at instance and device creation. The mechanism connects to [VKSPEC]'s object model: *"The dispatchable object handle is a pointer to a structure, which in turn, contains a pointer to a dispatch table maintained by the loader. This dispatch table contains pointers to the Vulkan functions appropriate to that object"* — one table built at `vkCreateInstance`, one at `vkCreateDevice`. Both drivers and layers are discovered through JSON **manifest files** naming the library and its configuration, which is why layers are an install-time/runtime property of the machine rather than something linked into the binary. Cite as `[VKLOADER]`.
+
+### VKPORT
+- **Title:** `VK_KHR_portability_subset` (Vulkan specification appendix)
+- **Author:** Khronos Group
+- **Type:** docs
+- **Where:** https://github.com/KhronosGroup/Vulkan-Docs/blob/main/appendices/VK_KHR_portability_subset.adoc (registry man page https://registry.khronos.org/vulkan/specs/latest/man/html/VK_KHR_portability_subset.html is fetch-blocked, HTTP 403)
+- **Verified:** 2026-07-29
+- **Notes:** The extension that makes non-native Vulkan legal, and a hard rule m20-02 must obey. It exists *"to enable a non-conformant Vulkan implementation to be built on top of another non-Vulkan graphics API, and identifies differences between that implementation and a fully-conformant native Vulkan implementation"*, letting an implementation *"mark otherwise-required capabilities as unsupported, or to establish additional properties and limits that the application should adhere to in order to guarantee portable behavior and operation across platforms."* The tell: *"Fully-conformant Vulkan implementations provide all the required capabilities, and so will not provide this extension"* — so its presence is the signal you are on a translation layer. The obligation: *"If this extension is supported by the Vulkan implementation, the application must enable this extension."* Cite as `[VKPORT]`.
+
+### VKPROFILES
+- **Title:** Vulkan Profiles Toolset — OVERVIEW
+- **Author:** Khronos Group (Vulkan-Profiles project)
+- **Type:** docs
+- **Where:** https://github.com/KhronosGroup/Vulkan-Profiles/blob/main/OVERVIEW.md (raw: https://raw.githubusercontent.com/KhronosGroup/Vulkan-Profiles/main/OVERVIEW.md) · repo: https://github.com/KhronosGroup/Vulkan-Profiles
+- **Verified:** 2026-07-29
+- **Notes:** The industry's formalization of "declare your capability baseline", and the answer to how you *test* a fallback path on hardware that does not need it. A profile is *"the explicit expression and formalization of Vulkan requirements"* providing *"clear communication of these requirements within the Vulkan Community"* — a named, machine-readable capability set (version + extensions + features + limits + formats) an application targets instead of assuming universal support. Predefined profiles include `VP_KHR_roadmap_2024` and `VP_KHR_roadmap_2022` (both Vulkan 1.3), `VP_LUNARG_desktop_baseline_2024` (1.2), and `VP_ANDROID_vulkan_profile_2022` (1.1). The critical tool for odyne is `VK_LAYER_KHRONOS_profiles` — installed on the dev machine as of 2026-07-29 — which *"simulates but doesn't emulate"* a profile: it **restricts** reported capabilities to the profile rather than adding missing functionality, so *"when combined with the Validation Layer, developers can test applications as if running on more limited hardware than their development system."* That is exactly how a modern-path-plus-fallback renderer keeps its fallback honest on a single machine. Cite as `[VKPROFILES]`.
 
 ### VKSPEC
 - **Title:** Vulkan Specification (Vulkan Documentation site)
 - **Author:** Khronos Group
 - **Type:** docs
-- **Where:** https://docs.vulkan.org/spec/latest/index.html
-- **Verified:** 2026-06-10
-- **Notes:** Authoritative API semantics (1.4.353 at verification) — the arbiter when VKGUIDE and reality disagree.
+- **Where:** https://docs.vulkan.org/spec/latest/index.html · Fundamentals: https://docs.vulkan.org/spec/latest/chapters/fundamentals.html · Synchronization: https://docs.vulkan.org/spec/latest/chapters/synchronization.html
+- **Verified:** 2026-06-10 · Fundamentals + Synchronization chapters verified 2026-07-29
+- **Notes:** Authoritative API semantics (1.4.353 at verification) — the arbiter when [VKGUIDE] and reality disagree. **Fundamentals** is m20-01's spine. Object model: **dispatchable** handles are pointers to opaque types that *"may be used by layers as part of intercepting API commands"*; **non-dispatchable** handles are 64-bit integers whose meaning is implementation-defined and which need not be unique unless the `privateData` feature is enabled. Execution model: the system exposes *"one or more devices, each of which exposes one or more queues which may process work asynchronously to one another"*, grouped into families by capability (graphics, compute, transfer, video decode/encode, sparse, protected); submission is asynchronous — queue submission commands *"should return as soon as the work has been submitted, without waiting for the work to complete"* — and within one queue, submissions *"respect submission order and other implicit ordering guarantees, but otherwise may overlap or execute out of order."* Valid usage: *"Vulkan implementations are not required to validate that the correct use of each command is satisfied"*, so violations are undefined behaviour and catching them is the validation layer's job, not the driver's. **Synchronization**: fences *"can be used to communicate to the host that execution of some task on the device has completed, controlling resource access between host and device"*; semaphores *"can be used to control resource access across multiple queues"*; events are *"a fine-grained synchronization primitive which can be signaled either within a command buffer or by the host, and can be waited upon within a command buffer or queried on the host"*; an *execution dependency* is *"a guarantee that for two sets of operations, the first set must happen-before the second set"*; and the memory half is two-stage — *"Availability operations cause the values generated by specified memory write accesses to become available to a memory domain for future access… Visibility operations cause values available to a memory domain to become visible to specified memory accesses."* Image layout transitions ride on those dependencies: the old layout *"must either be VK_IMAGE_LAYOUT_UNDEFINED, or match the current layout."* Cite as `[VKSPEC §Fundamentals — Execution Model]` / `[VKSPEC §Synchronization]`.
+
+### VMA
+- **Title:** Vulkan Memory Allocator
+- **Author:** AMD (GPUOpen)
+- **Type:** code
+- **Where:** https://gpuopen.com/vulkan-memory-allocator/ · repo: https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+- **Verified:** 2026-07-29
+- **Notes:** The industry's answer to "who sub-allocates GPU memory", and evidence that m02's arena/pool work is the same problem one level down. VMA is *"a simple and easy to integrate API to help you allocate memory for Vulkan® buffer and image storage"*, providing *"functions that help to choose correct and optimal memory type based on intended usage"* and, the core of it, *"functions that allocate memory blocks, reserve and return parts of them (`VkDeviceMemory` + offset + size) to the user. Library keeps track of allocated memory blocks, used and unused ranges inside them, finds best matching unused ranges for new allocations, respects all the rules of alignment and buffer/image granularity."* One `VkDeviceMemory` block, many resources at offsets — a suballocator, because `maxMemoryAllocationCount` is a real and often small limit (VMA ships `VMA_DEBUG_DONT_EXCEED_MAX_MEMORY_ALLOCATION_COUNT`, on by default, to catch exceeding it). Adoption is the point of the citation: *"integrated into the majority of Vulkan® game titles on PC"*, plus Google Filament and the official Khronos Vulkan Samples. Cite as `[VMA]`.
 
 ### WIN32
 - **Title:** Get Started with Win32 (Learn Win32 module) & Win32 API reference
