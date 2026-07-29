@@ -16,6 +16,13 @@ bin/
 # Local agent settings
 .claude/settings.local.json
 
+# ols (the Odin language server) config. Holds ABSOLUTE paths for the `engine`
+# collection, so it cannot be shared: it churned on every switch between the
+# macOS and Windows machines. Untracked as of 2026-07-29 — write your own after
+# cloning, pointing the collection at <repo>/engine. The build and test scripts
+# pass -collection:engine=engine themselves, so nothing but the editor needs it.
+ols.json
+
 # Offline reading packs — third-party docs/source downloaded per lesson, each under
 # its own licence. Regenerable; not part of odyne.
 curriculum/offline/
