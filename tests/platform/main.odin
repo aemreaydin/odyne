@@ -48,6 +48,30 @@ import "core:mem"
 import "core:os"
 import "core:strings"
 import "core:testing"
+import "core:thread"
+import "core:time"
+
+// A HUNG case is the failure mode this harness now has to survive: `game.run` owns a `for`, and a
+// loop whose exit condition is missing or wrong is always one line away. Without a watchdog the
+// run does not fail — it simply never finishes, which reports nothing and blocks CI.
+//
+// Each child process therefore carries one: a thread that sleeps, then kills the process with the
+// exit code `timeout(1)` uses. It needs no cooperation from the case, and because every case
+// already runs in its own child process by default, one timeout costs one case.
+//
+// The longest legitimate case is the 2 s hitch injection, so 15 s leaves ~6× headroom. Shrink it
+// when deliberately testing the timeout path: -define:ODYNE_CASE_TIMEOUT=3
+CASE_TIMEOUT_SECONDS :: #config(ODYNE_CASE_TIMEOUT, 15)
+TIMED_OUT_EXIT_CODE :: 124
+
+watchdog_proc :: proc() {
+	time.sleep(CASE_TIMEOUT_SECONDS * time.Second)
+	fmt.printfln(
+		"        TIMED OUT after %ds - the case never returned (infinite loop? blocking wait?)",
+		CASE_TIMEOUT_SECONDS,
+	)
+	os.exit(TIMED_OUT_EXIT_CODE)
+}
 
 Test_Case :: struct {
 	name: string,
@@ -59,6 +83,7 @@ all_cases :: proc(allocator := context.allocator) -> [dynamic]Test_Case {
 	append(&cases, ..PORTABLE_WINDOW_TESTS)
 	append(&cases, ..PORTABLE_INPUT_TESTS)
 	append(&cases, ..WIRING_TESTS)
+	append(&cases, ..LOOP_TESTS)
 	return cases
 }
 
@@ -109,9 +134,7 @@ run_case :: proc(tc: Test_Case, base_allocator: mem.Allocator) -> (failed: bool)
 		fmt.printfln("        BAD FREE @ %v", entry.location)
 	}
 
-	return t.error_count != 0 ||
-		len(track.allocation_map) != 0 ||
-		len(track.bad_free_array) != 0
+	return t.error_count != 0 || len(track.allocation_map) != 0 || len(track.bad_free_array) != 0
 }
 
 // run_case_isolated re-executes this binary for a single case, so a crash is contained.
@@ -132,12 +155,28 @@ run_case_isolated :: proc(tc: Test_Case) -> (failed: bool) {
 	os.write(os.stdout, stdout)
 	os.write(os.stderr, stderr)
 
-	if !state.success && state.exit_code > 1 {
-		// 139 = SIGSEGV, 134 = SIGABRT (an uncaught NSException lands here).
-		fmt.printfln("        CRASHED (exit %v) — the backend faulted inside this case", state.exit_code)
+	if state.exit_code == TIMED_OUT_EXIT_CODE {
+		// The child's watchdog fired and already said so on stdout; count it as a failure rather
+		// than as a crash, because the case did not fault — it never came back.
+		report(tc.name, true)
 		return true
 	}
-	return state.exit_code != 0
+
+	if !state.success && state.exit_code > 1 {
+		// 139 = SIGSEGV, 134 = SIGABRT (an uncaught NSException lands here).
+		fmt.printfln(
+			"        CRASHED (exit %v) - the backend faulted inside this case",
+			state.exit_code,
+		)
+		report(tc.name, true)
+		return true
+	}
+
+	// The child deliberately does not print its own verdict, so that a case which aborts partway
+	// (assertion, panic) still gets one.
+	failed = state.exit_code != 0
+	report(tc.name, failed)
+	return
 }
 
 report :: proc(name: string, failed: bool) {
@@ -165,8 +204,13 @@ run :: proc() -> (failures: int) {
 		for tc in cases {
 			if tc.name == want {
 				fmt.printfln("  %s", tc.name)
+				// Started before run_case installs its tracking allocator, so the watchdog's own
+				// allocation is not mistaken for a leak in the case under test.
+				thread.create_and_start(watchdog_proc, context, self_cleanup = true)
 				failed := run_case(tc, base_allocator)
-				report(tc.name, failed)
+				// No verdict line here: the PARENT prints it, because a case that dies on an
+				// assertion or a segfault never reaches this line and would otherwise leave its
+				// error text with no verdict attached to it.
 				return failed ? 1 : 0
 			}
 		}
@@ -201,7 +245,7 @@ run :: proc() -> (failures: int) {
 	}
 
 	fmt.printfln(
-		"odyne platform tests — %d case%s on %v, main thread, real windows (%s)",
+		"odyne platform tests - %d case%s on %v, main thread, real windows (%s)",
 		len(selected),
 		len(selected) == 1 ? "" : "s",
 		ODIN_OS,

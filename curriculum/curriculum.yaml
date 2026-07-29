@@ -150,7 +150,7 @@ modules:
         slug: main-loop
         title: The main loop & fixed timestep
         type: build
-        status: available
+        status: done
 
   # ── Phase 2 — Renderer I (Vulkan 2D) ───────────────────────────────────
   - id: m20
@@ -162,7 +162,7 @@ modules:
         slug: vulkan-mental-model
         title: The Vulkan mental model
         type: concept
-        status: locked
+        status: available
       - id: m20-02
         slug: instance-device
         title: Instance, device, queues

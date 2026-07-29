@@ -2,8 +2,10 @@ package testbed
 
 import "core:fmt"
 import "core:mem"
+import "core:time"
 import "engine:core/containers/handle_pool"
 import "engine:core/memory"
+import "engine:core/timing"
 import "engine:game"
 import "engine:platform"
 
@@ -93,46 +95,87 @@ main :: proc() {
 
 	handle_pool.clear(&hp)
 
-
-	platform.init()
-	wnd_handle, err := platform.create_window({hidden = false, title = "odyne"})
-	defer platform.shutdown()
-	if err != .None {
-		return
+	g := Game{}
+	cfg := game.App_Config {
+		initial_window = {title = "Testbed"},
+		target_fps = 60,
+	}
+	cb := game.App_Callbacks {
+		user     = rawptr(&g),
+		init     = game_init,
+		frame    = game_frame,
+		step     = game_step,
+		render   = game_render,
+		shutdown = game_shutdown,
 	}
 
-	last_key: platform.Key
-	for !platform.should_close(wnd_handle) {
-		platform.poll_events()
-
-		if platform.key_down(wnd_handle, .Escape) {
-			platform.set_should_close(wnd_handle, true)
-		}
-
-		buttons_string := ""
-		for button in platform.Mouse_Button {
-			if platform.mouse_down(wnd_handle, button) {
-				buttons_string = fmt.tprintf("%s %v", buttons_string, button)
-			}
-		}
-
-		for key in platform.Key {
-			if platform.key_pressed(wnd_handle, key) {
-				last_key = key
-				break
-			}
-		}
-
-		mouse_pos := platform.mouse_position(wnd_handle)
-		title := fmt.tprintf(
-			"Pos: (%d, %d) - Buttons: %s - Last_key: %v",
-			mouse_pos.x,
-			mouse_pos.y,
-			buttons_string,
-			last_key,
-		)
-		platform.set_window_title(wnd_handle, title)
-		free_all(context.temp_allocator)
-	}
+	game.run(cfg, cb)
 }
 
+Game :: struct {
+	x: f32,
+	prev: f32,
+}
+
+game_init :: proc(app: ^game.App, user: rawptr) -> bool {
+	return true
+}
+
+game_frame :: proc(app: ^game.App, user: rawptr) {
+	if platform.key_pressed(app.window, .Escape) {
+		platform.set_should_close(app.window, true)
+	}
+
+	if platform.key_pressed(app.window, .P) {
+		app.paused = !app.paused
+	}
+
+	if platform.key_down(app.window, .H) {
+		time.sleep(2 * time.Second)
+	}
+
+	if platform.key_pressed(app.window, .L) {
+		app.cfg.unlimited = !app.cfg.unlimited
+	}
+
+	// fps comes from the SMOOTHED average, never from this frame's dt: a per-frame reciprocal
+	// jitters far too much to read. The measured dt is for the simulation, the average is for the
+	// human -- the split m11-01 settled. Guarded because an empty history reports 0.
+	avg := timing.history_average(&app.clock.history)
+	fps := avg > 0 ? 1.0 / time.duration_seconds(avg) : 0
+
+	// P and L are otherwise invisible: pausing looks like a stopped sim clock, and toggling the
+	// limiter only shows up as a change in fps. Say so out loud instead.
+	state := ""
+	if app.paused {state = " [PAUSED]"}
+	if app.cfg.unlimited {state = fmt.tprintf("%s [UNCAPPED]", state)}
+
+	// sim vs real in seconds, two decimals: the pair is here to be WATCHED DIVERGING under a hitch
+	// or a pause, and a divergence of tens of milliseconds is invisible at lower precision.
+	title := fmt.tprintf(
+		"f %d | %.1f fps | frame avg %v (min %v max %v) | steps %d | a %.3f | sim %.2fs real %.2fs%s",
+		app.clock.frame_index,
+		fps,
+		avg,
+		timing.history_min(&app.clock.history),
+		timing.history_max(&app.clock.history),
+		app.steps.count,
+		app.steps.alpha,
+		time.duration_seconds(timing.sim_time(&app.pacer)),
+		time.duration_seconds(app.clock.elapsed),
+		state,
+	)
+	platform.set_window_title(app.window, title)
+}
+
+game_step :: proc(app: ^game.App, user: rawptr, dt: f32) {
+	g := cast(^Game)(user)
+	g.prev = g.x
+	g.x += 10 * dt
+}
+
+game_render :: proc(app: ^game.App, user: rawptr, alpha: f32) {
+}
+
+game_shutdown :: proc(app: ^game.App, user: rawptr) {
+}

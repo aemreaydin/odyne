@@ -66,6 +66,9 @@ try {
 	}
 
 	New-Item -ItemType Directory -Force -Path $BuildDir | Out-Null
+	# Linked binaries land in build/, and on Windows SDL3.dll has to sit beside them or they
+	# do not start. Done once here rather than per package.
+	Sync-SdlRuntime -Destination $BuildDir
 
 	$failed = @()
 	foreach ($pkg in $packages) {

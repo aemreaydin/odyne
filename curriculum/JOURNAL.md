@@ -16,6 +16,101 @@ lesson's measurement task.
 
 ---
 
+## 2026-07-29 — lesson-m11-02: main-loop (build)
+
+- **Built:** `katas/timing/` graduated to **`engine/core/timing/`**, byte-identical (package `timing`,
+  not `time`: a compiler probe showed Odin package names are unique *program-wide*, so `package time`
+  cannot coexist with `core:time` at all, and the import identifier comes from the *path segment*, so
+  even `core/time/` holding `package timing` would force an alias at every dual-import site). Added
+  **`Pacer`** — the fixed-timestep accumulator, pure arithmetic, no clock, no syscall, no platform:
+  `fixed_dt` + `accumulator` + `steps_taken`, `pacer_advance(dt) -> Frame_Steps{count, alpha}`,
+  `sim_time = steps_taken * fixed_dt`. Default step **50 Hz = 20,000,000 ns, exact in nanoseconds**
+  (chosen over 60 Hz, whose period is not), implemented with divide-and-modulo rather than a step
+  loop, so it is O(1) where both required readings loop. Added **`engine/game/app.odin`** — the
+  engine-owned driver: `run(App_Config, App_Callbacks) -> App_Error` owns platform init, one window,
+  the clock, the pacer, the limiter, the per-frame temp reset, and teardown on every exit path.
+  Callbacks `init`/`frame`/`step`/`render`/`shutdown`, all optional, with the ordering **guaranteed**:
+  one `frame` per frame after the pump, 0..N `step`s each with the fixed dt, one `render` after them
+  with alpha. That two-callback split IS the input-seam fix — edges live exactly one frame, steps run
+  0..N times per frame, so edges may only be read in `frame` and latched into intent for a step to
+  consume. Catch-up bound is m11-01's dt clamp (`max_dt` 100 ms, `clamp_dt` derived from `fixed_dt`),
+  which keeps refusal *upstream* of the accumulator and therefore makes `alpha ∈ [0,1)` structural.
+  Pause is the absence of a deposit: `frame_start`, the pump, `frame` and `render` all keep running,
+  which is why resuming needs no rule at all. Testbed rewired to the real loop with a live readout
+  (frame index, fps, frame-time avg/min/max, steps, alpha, sim vs real, PAUSED/UNCAPPED), Esc/P/H/L,
+  and a raw-vs-lerp pair. Tests in two tiers: **32** under `odin test engine/core/timing` (fabricated
+  deltas, no clock) and **8** real-window cases in `tests/platform` (ordering, fixed step, hitch
+  absorption, pause, limiter, optional callbacks, re-enabling the limiter, init failure).
+  `scripts/test.ps1` now runs both tiers, `Sync-SdlRuntime` puts SDL3.dll beside binaries on Windows,
+  and the tier-2 harness gained a **per-case watchdog** (exit 124 after 15 s) because a loop with a
+  wrong exit condition otherwise hangs the run instead of failing it — it then caught two real hangs.
+  Four design amendments, two raised by the learner (`App` holds the clock/pacer rather than eleven
+  flattened copies of their fields; the driver's file is `app.odin`, because `init`/`shutdown` are
+  once-per-`run` and a file named `loop` implied otherwise). **The tutor wrote implementation code
+  this lesson**, at the learner's explicit request: the limiter's frame-anchored deadline, the
+  readout's fps/state lines, and the six review fixes — see design.md amendments 3 and 4. Debugging
+  gauntlet: a nil-callback segfault and an exitless `for` (caught as a crash and as a hang);
+  `clamp_dt` resolved from the *unresolved* field, so a hitch reported dt 0; a pause that guarded the
+  whole frame body and deadlocked the loop (no pump ⇒ no close, no `frame` ⇒ nothing could unpause);
+  a reversed lerp; and the period computed three ways before landing — `Duration(target_fps)` = 60 ns,
+  then f64 milliseconds, then `period * time.Millisecond` = 16,666 s per frame. That last one is the
+  unit trap at its sharpest: **`Duration * Duration` is nanoseconds squared, and `distinct i64`
+  cannot catch it.**
+- **Measured:** (tutor-run · `katas/main_loop_bench/` · `-o:speed` · **Windows 11** · one process per
+  timing-sensitive section, for the reason in the second bullet)
+  - **The platform layer silently owns `core`'s timing precision.** `Sleep(1ms)` overshoot: **13.02 ms
+    cold → 0.955 ms after `platform.init()` → 11.52 ms again after `platform.shutdown()`.** A 14×
+    improvement bought by `SDL_Init({.VIDEO})` alone, because SDL holds a `timeBeginPeriod` request
+    (`SDL_HINT_TIMER_RESOLUTION` defaults to `"1"`) [SDL], [MS-TIMEPERIOD]. Our own
+    `timeBeginPeriod(1)` on top adds **nothing** (0.978 ms), so that knob is not odyne's business —
+    the decision is already made three layers down, as a side effect of opening a window. A headless
+    tool using `timing` without `platform.init` silently gets 13 ms granularity.
+  - **…and Windows takes it back mid-run.** After ~10 s of continuous sleeping the resolution is
+    **revoked** (0.776 ms → **15.07 ms**), and `timeBeginPeriod(1)` cannot restore it (14.47 ms). With
+    a *visible* window it held 0.83 ms through 8 s and had degraded by 16 s; with a *hidden* window it
+    was already gone at 8 s. Matches [MS-TIMEPERIOD]'s Windows 11 clause about a process *"invisible or
+    inaudible to the end user"*; the exact trigger is `[unverified]` from black-box measurement. **This
+    invalidated the first version of the bench**, which ran all three phases in one process and so
+    measured phases 2 and 3 after revocation — making `timeBeginPeriod` look inert when it is not. One
+    process per phase fixed it, the same isolation trick the tier-2 harness uses.
+  - **`time.sleep` can return EARLY on Windows**: 16.7 ms requested, **−363 µs mean** overshoot,
+    because `Sleep(d / Millisecond)` truncates 16,666,666 ns to `Sleep(16)` [ODIN-TIME]. A sleep-only
+    limiter would therefore end frames *faster* than the target. `wait_until`'s one-loop-one-exit
+    structure is what makes that unobservable — now vindicated empirically, not just by argument.
+  - **The software limiter cannot hold 60 fps on Windows.** 900 real frames at a 16.67 ms target:
+    mean frame **21.5 ms hidden / 23.0 ms visible**, stddev **5.8 / 6.9 ms**, worst 49.8 / 99.7 ms —
+    an achieved **44–46 fps** and **29–38% cumulative slippage** (4.36 s / 5.69 s lost over 15 s).
+    Sleep granularity dominates; the loop's own bookkeeping is ~38 ns. **This corrects amendment 3's
+    estimate that the frame-anchored deadline costs "0.1%": on Windows it costs 30–40%, because the
+    anchor never recovers overshoot and here overshoot is milliseconds, not microseconds.** The same
+    900 frames unlimited: **165 ms wall, ~5,500 fps, 119× faster**, one core pinned.
+  - **Steps-per-frame matches theory exactly** (50 Hz sim, 2,000 frames per rate): 30 fps → 1.667
+    steps/frame (667 one-step frames, 1,333 two-step); 50 → 1.000; **60 → 0.833, i.e. 334 zero-step
+    frames in 2,000, one in six**; 100 → 0.500; 144 → 0.347. Every mean equals `50 / render_rate` to
+    three decimals — the arithmetic case for publishing alpha, rather than a design opinion.
+  - **Sim-time bookkeeping over 100,000 jittered frames** (99,907 steps ≈ 33 min of simulation):
+    derived `steps × fixed_dt` is the reference; **accumulating in i64 ns has error 0 s** — so integer
+    accumulation is exact too, and the argument for deriving is single-source-of-truth, not precision;
+    **accumulating in f32 seconds is 1.328 s wrong.** Conservation `fed == sim + accumulator` held
+    exactly. Residue check: 100,000 steps land **0.067 ms** short of exact 60 Hz and **0.000 ms** short
+    of exact 50 Hz.
+  - **The spiral, priced** (2 s hitch at a 20 ms step, then 10 normal frames): with no bound the hitch
+    frame runs **100 steps**; with the engine's dt clamp, **1 step**, and 1.983 s of real time
+    deliberately refused; with a step cap of 5 that *keeps* its leftovers, 5 steps but **1.083 s still
+    queued = 54 more steps owed**, and that leftover puts alpha at **54.17**, outside `[0,1)`. The
+    design's claim that a kept-leftover step cap and the alpha invariant are incompatible is now a
+    measured number.
+  - **Loop overhead is free**: `pacer_advance` **5.8 ns**, `frame_start` incl. history push **4.5 ns**,
+    `history_average` **1.2 ns** (O(1) via the maintained sum), `history_min`+`history_max` **86.6 ns**
+    (the two scans — the largest item in the timing code), `time.tick_now` **28.1 ns**. A frame that
+    ticks the clock, advances the pacer and reads all three stats costs **~126 ns = 0.0008% of a
+    16.67 ms budget**. Every interesting number in this lesson is about the OS, not the arithmetic.
+- **Takeaways:**
+  Game loop is actually super hard to implement - there are so many thing happening both
+  in the software and in the hardware
+- **Reflections:**
+  This was a hard one - I didn't enjoy trying to wrap my head around the timing system
+
 ## 2026-07-28 — lesson-m11-01: timing (kata)
 
 - **Built:** `katas/timing/` — a monotonic **frame clock**, a fixed-capacity **frame-time

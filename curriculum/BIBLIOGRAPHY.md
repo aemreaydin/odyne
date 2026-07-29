@@ -22,6 +22,14 @@ Never reuse or rename a key once a lesson cites it.
 
 ---
 
+### ANDROID-PACING
+- **Title:** Android Frame Pacing library (Swappy), Android Game Development Kit
+- **Author:** Google
+- **Type:** docs
+- **Where:** https://developer.android.com/games/sdk/frame-pacing
+- **Verified:** 2026-07-29
+- **Notes:** The industry's most explicit treatment of frame pacing as a problem in its own right, and the one that abandons "compute a deadline and sleep" entirely. Definition: *"Frame pacing is the synchronization of a game's logic and rendering loop with an OS's display subsystem and the underlying display hardware."* The symptom, with numbers: a 30 fps render loop on 60 fps hardware *"doesn't realize that a repeated frame remains on the screen for an extra 16 milliseconds"*, producing frame times like *"49 milliseconds, 16 milliseconds, 33 milliseconds"* — and *"short frames followed by long frames are perceived by the player as stuttering."* The mechanism is presentation-time based rather than sleep based: *"The library uses the presentation timestamp extensions `EGL_ANDROID_presentation_time` and `VK_GOOGLE_display_timing` so that frames are not presented early"*, plus Android Choreographer for the tick and *"sync fences (`EGL_KHR_fence_sync` and `VkFence`) to inject waits into the application that allow the display pipeline to catch up, rather than allowing back pressure to build up."* Also sets the display refresh rate to the value *"closest to the target frame rate"* for battery. Cite as `[ANDROID-PACING]`.
+
 ### APPLE
 - **Title:** Apple Developer Documentation — AppKit (`NSApplication`, `NSWindow`, `NSWindowDelegate`, `NSView`, `NSEvent`)
 - **Author:** Apple
@@ -46,6 +54,14 @@ Never reuse or rename a key once a lesson cites it.
 - **Verified:** 2026-07-18
 - **Notes:** The classic id→object storage designs — array-with-holes + freelist, packed array + index table with swap-with-last delete, measured against std::map — m03's handle-pool blueprint.
 
+### DEWITTERS
+- **Title:** deWiTTERS Game Loop
+- **Author:** Koen Witters
+- **Type:** article
+- **Where:** https://dewitters.com/dewitters-gameloop/
+- **Verified:** 2026-07-28
+- **Notes:** The 2009 tutorial that taught a generation the four loop shapes, ending on *"constant game speed independent of variable FPS"*: a `TICKS_PER_SECOND`/`SKIP_TICKS` fixed update, a `MAX_FRAMESKIP` cap on catch-up steps, and a render-time `interpolation` factor computed as `float(GetTickCount() + SKIP_TICKS - next_game_tick) / float(SKIP_TICKS)` and used as `view_position = position + (speed * interpolation)`. Same accumulator as [GAFFER-TIMESTEP], reached independently, with the catch-up bound expressed as a **step cap** rather than as a dt clamp. Note the milliseconds-and-`GetTickCount()` time base — the [MS-QPC] lesson had not landed in tutorials yet. Cite as `[DEWITTERS]`.
+
 ### DX12
 - **Title:** Direct3D 12 programming guide
 - **Author:** Microsoft
@@ -69,6 +85,14 @@ Never reuse or rename a key once a lesson cites it.
 - **Where:** https://floooh.github.io/2018/06/17/handles-vs-pointers.html
 - **Verified:** 2026-07-18
 - **Notes:** The handles manifesto — index+generation handles, system-owned arrays, stale-handle detection, "pointers are transient locals" — m03's conceptual spine.
+
+### GAFFER-TIMESTEP
+- **Title:** Fix Your Timestep!
+- **Author:** Glenn Fiedler
+- **Type:** article
+- **Where:** https://gafferongames.com/post/fix_your_timestep/
+- **Verified:** 2026-07-28
+- **Notes:** The canonical statement of the fixed-timestep accumulator — m11-02's spine. Five stages, each fixing the previous one's flaw: fixed delta time → variable delta time → semi-fixed timestep → free the physics → the final touch. Why a real dt cannot go into a simulation: *"The problem is that the behavior of your physics simulation depends on the delta time you pass in"*, and *"it's utterly unrealistic to expect your simulation to correctly handle any delta time passed into it."* The viewpoint flip: *"the renderer **produces time** and the simulation **consumes it** in discrete dt sized steps."* The failure mode named: *"It's called the spiral of death because being behind causes your update to simulate more steps to catch up, which causes you to fall further behind, which causes you to simulate more steps…"*, with the bound — *"Alternatively you can clamp at a maximum # of steps per-frame and the simulation will appear to slow down under heavy load."* And the leftover: *"We can use this remainder value to get a blending factor between the previous and current physics state simply by dividing by dt"* — the render-interpolation alpha. Cite as `[GAFFER-TIMESTEP]`.
 
 ### GB-MEM
 - **Title:** Memory Allocation Strategies (series, parts 1–6)
@@ -102,13 +126,21 @@ Never reuse or rename a key once a lesson cites it.
 - **Verified:** 2026-06-10
 - **Notes:** Model/asset interchange format for m43-04. Registry blocks automated fetches; confirmed canonical via the official repo (https://github.com/KhronosGroup/glTF).
 
+### GPP-LOOP
+- **Title:** Game Programming Patterns — "Game Loop" (Sequencing Patterns)
+- **Author:** Robert Nystrom
+- **Type:** book
+- **Where:** https://gameprogrammingpatterns.com/game-loop.html (full text free online) · ISBN 978-0990582908
+- **Verified:** 2026-07-28
+- **Notes:** The pattern write-up of the loop, and the clearest statement of what it is *for*: *"Decouple the progression of game time from user input and processor speed."* Two jobs — *"it processes user input, but doesn't wait for it"* and *"it runs the game at a consistent speed despite differences in the underlying hardware."* Rejects the variable time step on determinism grounds (*"we've made the game non-deterministic and unstable"* — float rounding differs per machine, which breaks networked play) and lands on **fixed update + variable rendering**: a `lag` accumulator, a `while (lag >= MS_PER_UPDATE)` catch-up, and `render(lag / MS_PER_UPDATE)` — the alpha handed to the renderer. Warning worth keeping: *"If step two takes longer than step one, the game slows down."* Cite as `[GPP-LOOP]`.
+
 ### HMH
 - **Title:** Handmade Hero
 - **Author:** Casey Muratori
 - **Type:** video
 - **Where:** https://handmadehero.org (→ mollyrocket.com/handmade) · episode guide: https://guide.handmadehero.org/
 - **Verified:** 2026-06-10
-- **Notes:** Win32 platform layer, timing, and audio built from scratch on camera — phases 1 and 3. Project on hiatus; archives and guide remain live. Cite as `[HMH day 7]`.
+- **Notes:** Win32 platform layer, timing, and audio built from scratch on camera — phases 1 and 3. Project on hiatus; archives and guide remain live. Cite as `[HMH day 7]`. Days relevant so far: **day 10** "QueryPerformanceCounter and RDTSC" (wall-clock vs processor time, the inline `(1000*(counter - last_counter)) / freq` conversion); **day 18** "Enforcing a Video Frame Rate" (verified 2026-07-28) — why an enforced frame rate is necessary, the frame computation/display timeline, variable-refresh monitors, "Casey's game loop design overview", *"Looping to ensure we are within the targetSecondsPerFrame"*, giving time back with sleep, and *"Setting the Windows scheduler granularity with timeBeginPeriod()"* — the same limiter m11-02 builds, on camera, with the same [MS-TIMEPERIOD] caveat.
 
 ### MS-QPC
 - **Title:** Acquiring high-resolution time stamps
@@ -117,6 +149,14 @@ Never reuse or rename a key once a lesson cites it.
 - **Where:** https://learn.microsoft.com/en-us/windows/win32/sysinfo/acquiring-high-resolution-time-stamps
 - **Verified:** 2026-07-27
 - **Notes:** The canonical treatment of high-resolution timing on Windows, and the clearest general statement of the hazards anywhere — m11's authority. Monotonicity: *"Is the performance counter monotonic (non-decreasing)? Yes. QPC does not go backward."* Independence from wall time: *"QPC is completely independent of the system time and UTC"* — unaffected by DST, leap seconds, time zones, or admin clock changes; it is a **difference clock**, not an absolute clock. Frequency *"is fixed at system boot and is consistent across all processors so you only need to query the frequency from QueryPerformanceFrequency as the application initializes, and then cache the result"* — and *don't* assume it reflects hardware: under a v1.0 hypervisor (or on newer Windows) it is *"fixed to 10 MHz"*. Rollover: *"Not less than 100 years from the most recent system boot."* Direct TSC: *"We strongly discourage using the RDTSC or RDTSCP processor instruction."* Conversion: the sample code's comment — *"To guard against loss-of-precision, we convert to microseconds \*before\* dividing by ticks-per-second"* — plus the three integer hazards (division loses the remainder, i64↔f64 loses mantissa bits, 64-bit multiply can overflow) and the rule *"delay these computations and conversions as long as possible to avoid compounding the errors."* Also `Precision = MAX[Resolution, AccessTime]` (TSC-based QPC access ≈30 ns; platform-timer fallback ≈0.8–1.0 µs), the ±1-tick quantization/ordering ambiguity across threads, and the ppm frequency-offset table (±10 ppm ⇒ ±36 ms/hour). Cite as `[MS-QPC]`.
+
+### MS-TIMEPERIOD
+- **Title:** `timeBeginPeriod` function (timeapi.h)
+- **Author:** Microsoft
+- **Type:** docs
+- **Where:** https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod
+- **Verified:** 2026-07-28
+- **Notes:** *"requests a minimum resolution for periodic timers"* — the knob every Windows frame limiter has reached for since the 1990s, and the reason a 1 ms sleep on Windows is not a 1 ms sleep. Scope changed twice: *"Prior to Windows 10, version 2004, this function affects a global Windows setting. For all processes Windows uses the lowest value (that is, highest resolution) requested by any process. Starting with Windows 10, version 2004, this function no longer affects global timer resolution. For processes which call this function, Windows uses the lowest value … requested by any process. For processes which have not called this function, Windows does not guarantee a higher resolution than the default system resolution."* And on Windows 11, *"if a window-owning process becomes fully occluded, minimized, or otherwise invisible or inaudible to the end user, Windows does not guarantee a higher resolution than the default system resolution."* The costs: *"it can also reduce overall system performance, because the thread scheduler switches tasks more often. High resolutions can also prevent the CPU power management system from entering power-saving modes."* And the line that separates the two clocks m11-01 measured: *"Setting a higher resolution does not improve the accuracy of the high-resolution performance counter."* Must be paired with `timeEndPeriod`. Cite as `[MS-TIMEPERIOD]`.
 
 ### ND-FIBERS
 - **Title:** Parallelizing the Naughty Dog Engine Using Fibers (GDC 2015)
@@ -202,9 +242,9 @@ Never reuse or rename a key once a lesson cites it.
 - **Title:** SDL3 wiki — SDL_GetKeyboardState · SDL_KeyboardEvent · SDL_Scancode · SDL_CreateWindow · SDL_PushEvent
 - **Author:** SDL project
 - **Type:** docs
-- **Where:** https://wiki.libsdl.org/SDL3/SDL_GetKeyboardState · https://wiki.libsdl.org/SDL3/SDL_KeyboardEvent · https://wiki.libsdl.org/SDL3/SDL_Scancode · https://wiki.libsdl.org/SDL3/SDL_CreateWindow · https://wiki.libsdl.org/SDL3/SDL_PushEvent · https://wiki.libsdl.org/SDL3/SDL_GetTicksNS · https://wiki.libsdl.org/SDL3/SDL_DelayNS · https://wiki.libsdl.org/SDL3/SDL_DelayPrecise
-- **Verified:** 2026-07-22 · scope widened 2026-07-27 (platform backend) · timing pages verified 2026-07-27
-- **Notes:** Was m10-02's read-model reference; **since 2026-07-27 it is odyne's actual platform backend** (`engine/platform/window_sdl.odin`, `input_sdl.odin`, via `vendor:sdl3`). Ships BOTH input read models side by side: a scancode-indexed snapshot array updated by the event pump (with the documented lost-tap caveat: press+release before the pump "will never show up"), and an event queue whose key events carry `down` + `repeat` flags — odyne uses the queue, because the lost-tap caveat is exactly what the half-transition counter exists to defeat. `SDL_Scancode` is USB HID usage page 0x07 — physical key identity, layout-independent, which is what WASD needs. `SDL_PushEvent` puts a synthetic event on the same queue the OS writes to, which is what made the input WIRING tier portable (`tests/platform/suite_input_wiring.odin`) after the per-OS message-injection suites were retired. **Timing (m11):** `Uint64 SDL_GetTicksNS(void)` returns *"the number of nanoseconds since the SDL library initialized"* (thread-safe, since 3.2.0) — an app-relative monotonic origin, unlike `core:time`'s boot-relative one; `void SDL_DelayNS(Uint64 ns)` *"waits at least the specified time, but possibly longer due to OS scheduling"*; `void SDL_DelayPrecise(Uint64 ns)` *"will attempt to wait as close to the requested time as possible, busy waiting if necessary, but could return later due to OS scheduling"* — SDL's own sleep-then-spin, the same shape as [ODIN-TIME accurate_sleep]. Cite as `[SDL SDL_GetKeyboardState]` / `[SDL SDL_DelayPrecise]`.
+- **Where:** https://wiki.libsdl.org/SDL3/SDL_GetKeyboardState · https://wiki.libsdl.org/SDL3/SDL_KeyboardEvent · https://wiki.libsdl.org/SDL3/SDL_Scancode · https://wiki.libsdl.org/SDL3/SDL_CreateWindow · https://wiki.libsdl.org/SDL3/SDL_PushEvent · https://wiki.libsdl.org/SDL3/SDL_GetTicksNS · https://wiki.libsdl.org/SDL3/SDL_DelayNS · https://wiki.libsdl.org/SDL3/SDL_DelayPrecise · https://wiki.libsdl.org/SDL3/SDL_HINT_TIMER_RESOLUTION · https://wiki.libsdl.org/SDL3/SDL_AppIterate
+- **Verified:** 2026-07-22 · scope widened 2026-07-27 (platform backend) · timing pages verified 2026-07-27 · timer-resolution hint + main-callback pages verified 2026-07-28
+- **Notes:** Was m10-02's read-model reference; **since 2026-07-27 it is odyne's actual platform backend** (`engine/platform/window_sdl.odin`, `input_sdl.odin`, via `vendor:sdl3`). Ships BOTH input read models side by side: a scancode-indexed snapshot array updated by the event pump (with the documented lost-tap caveat: press+release before the pump "will never show up"), and an event queue whose key events carry `down` + `repeat` flags — odyne uses the queue, because the lost-tap caveat is exactly what the half-transition counter exists to defeat. `SDL_Scancode` is USB HID usage page 0x07 — physical key identity, layout-independent, which is what WASD needs. `SDL_PushEvent` puts a synthetic event on the same queue the OS writes to, which is what made the input WIRING tier portable (`tests/platform/suite_input_wiring.odin`) after the per-OS message-injection suites were retired. **Timing (m11):** `Uint64 SDL_GetTicksNS(void)` returns *"the number of nanoseconds since the SDL library initialized"* (thread-safe, since 3.2.0) — an app-relative monotonic origin, unlike `core:time`'s boot-relative one; `void SDL_DelayNS(Uint64 ns)` *"waits at least the specified time, but possibly longer due to OS scheduling"*; `void SDL_DelayPrecise(Uint64 ns)` *"will attempt to wait as close to the requested time as possible, busy waiting if necessary, but could return later due to OS scheduling"* — SDL's own sleep-then-spin, the same shape as [ODIN-TIME accurate_sleep]. **`SDL_HINT_TIMER_RESOLUTION` (m11-02):** *"A variable that controls the timer resolution, in milliseconds"* — Windows-only, *"The default value is '1'"*, and *"If this variable is set to '0', the system timer resolution is not set"*; the wiki names the trade-off (more frequent timer interrupts ⇒ more precise delays, at the cost of power and CPU time), i.e. SDL calls [MS-TIMEPERIOD] on your behalf unless told not to. **`SDL_AppIterate` (m11-02, loop ownership):** *"App-implemented iteration entry point for SDL_MAIN_USE_CALLBACKS apps"* — *"called repeatedly by SDL after SDL_AppInit returns SDL_APP_CONTINUE"*, one *"iteration the program's primary loop"*, and it *"should not go into an infinite mainloop; it should do one iteration of whatever the program does and return."* The inverted-control loop, offered by the platform layer — the standing alternative to an app-owned `for`, and a live option in m11-02's design conversation. Cite as `[SDL SDL_GetKeyboardState]` / `[SDL SDL_DelayPrecise]` / `[SDL SDL_AppIterate]`.
 
 ### SOKOL
 - **Title:** sokol — `sokol_app.h`, the cross-platform application wrapper
@@ -213,6 +253,30 @@ Never reuse or rename a key once a lesson cites it.
 - **Where:** https://github.com/floooh/sokol · https://github.com/floooh/sokol/blob/master/sokol_app.h
 - **Verified:** 2026-07-24
 - **Notes:** "A minimal cross-platform application-wrapper library" — one API for window, 3D context, and event-based keyboard/mouse/touch across macOS, iOS, HTML5, Win32, Linux/RPi and Android, with the backend chosen by compile-time defines (`SOKOL_METAL`, `SOKOL_D3D11`, `SOKOL_GLCORE`, …) inside a single 15k-line header. The reference shape for m10-03's one-API-many-backends seam; same author as [FLOOOH]. Cite as `[SOKOL sokol_app.h]`.
+
+### UE-SUBSTEP
+- **Title:** Physics Sub-Stepping in Unreal Engine
+- **Author:** Epic Games
+- **Type:** docs
+- **Where:** https://dev.epicgames.com/documentation/en-us/unreal-engine/physics-sub-stepping-in-unreal-engine
+- **Verified:** 2026-07-28
+- **Notes:** The industry's *other* answer: keep the engine tick variable and give the accumulator to physics alone. The premise is stated plainly — the engine uses variable frame rates for scalability, but *"the physics engine works best with small fixed time steps."* Two knobs: **Max Substep Delta Time**, *"the maximum time, in seconds a sub-step is allowed to take"*, and **Max Substeps**, *"the maximum number of sub-steps a full step is permitted to be broken into"* — so a 0.05 s frame with a 0.025 s max substep delta *"will be split into 2 sub-steps"*, capped by Max Substeps. Same accumulator, same catch-up bound as [GAFFER-TIMESTEP]/[DEWITTERS], scoped to one subsystem instead of the whole simulation. Cite as `[UE-SUBSTEP]`.
+
+### UE-PACING
+- **Title:** Frame Pacing for Mobile Devices in Unreal Engine · Smooth Frame Rate
+- **Author:** Epic Games
+- **Type:** docs
+- **Where:** https://dev.epicgames.com/documentation/en-us/unreal-engine/frame-pacing-for-mobile-devices-in-unreal-engine · https://dev.epicgames.com/documentation/en-us/unreal-engine/smooth-frame-rate?application_version=4.27
+- **Verified:** 2026-07-29
+- **Notes:** Unreal's answer to *pacing* (distinct from [UE-SUBSTEP], which is about the fixed simulation step). Frame pacing is defined as *"a system that restricts an application to rendering frames at a lower framerate than a device's native refresh rate"*, in order to *"prioritize consistency and stability in rendering, providing for a smoother user experience"* — the goal is consistency, not a lower number. The stated cause is the same one [ANDROID-PACING] names: *"games' renderers are often unaware of this process and out of synch with it, causing them to get ahead of the displayed frame"*, and on Android Unreal simply **integrates Google's Swappy** rather than rolling its own. On desktop the knob is **Smooth Frame Rate**, in Project Settings under General Settings/Framerate, *"enabled by default"*, which *"can be used to define the min/max acceptable frame rates on a per-application basis"* with each bound settable as *"Exclusive (excludes value), Inclusive (includes value), or Open (value is not capped)"* — i.e. a frame-rate *range*, not a single target. Cite as `[UE-PACING]`.
+
+### UNITY-TIME
+- **Title:** Unity documentation — the fixed timestep loop, `Time.fixedDeltaTime`, `Time.maximumDeltaTime`, `Application.targetFrameRate`
+- **Author:** Unity Technologies
+- **Type:** docs
+- **Where:** https://docs.unity3d.com/Manual/fixed-updates.html · https://docs.unity3d.com/ScriptReference/Time-fixedDeltaTime.html · https://docs.unity3d.com/ScriptReference/Time-maximumDeltaTime.html · https://docs.unity3d.com/ScriptReference/Application-targetFrameRate.html
+- **Verified:** 2026-07-28 · `targetFrameRate` added 2026-07-29
+- **Notes:** A shipping engine's accumulator, described from the user's side. `fixedDeltaTime` is *"The interval in seconds of in-game time at which physics and other fixed frame rate updates are performed"* — in-game time, so `Time.timeScale` scales it. The loop: *"a fixed update always needs a frame to run in and the duration of a frame and the length of the fixed time step are not in perfect sync"*, so at high frame rates *"each frame has one fixed update or none at all"* and at low ones *"each frame has one or more fixed updates"*; a *"backlog of fixed updates accumulates during some frames"* and Unity *"executes all of them in the next frame to catch up"*, with *"a maximum timestep period beyond which Unity will not attempt to catch up."* That bound is a **dt clamp, not a step cap**: `maximumDeltaTime` is *"The maximum value of Time.deltaTime in any given frame"*, it *"bounds the maximum number of times Unity executes MonoBehaviour.FixedUpdate in a frame to maximumDeltaTime / fixedDeltaTime"*, and it *"is always at least as large as Time.fixedDeltaTime."* Default values are **not published on these pages** — treat any specific default as `[unverified]`. **`Application.targetFrameRate` (m11-02, the limiter):** a software frame cap that Unity's own docs discourage relative to vsync — it is *"a software-based timing method"*, *"If `vSyncCount != 0`, then `targetFrameRate` is ignored"*, and most usefully: *"Setting `vSyncCount = 0` and using `targetFrameRate` will not produce a completely stutter-free output"*, being *"subject to microstuttering."* The waiting mechanism is not documented. Cite as `[UNITY-TIME fixed-updates]` / `[UNITY-TIME maximumDeltaTime]` / `[UNITY-TIME targetFrameRate]`.
 
 ### VKGUIDE
 - **Title:** Vulkan Guide

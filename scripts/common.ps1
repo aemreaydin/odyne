@@ -52,6 +52,12 @@ function Get-OdinPackage {
 		One package per directory that directly contains .odin files. A package
 		counts as an executable when one of its files declares a `main` procedure,
 		which is what decides `odin build` versus `odin check`.
+
+		A package is a HARNESS when it is an executable under tests/: a test suite
+		that has to own `main` rather than live in @(test) procedures (SDL's video
+		subsystem is main-thread-only on macOS and `odin test` always dispatches onto
+		a worker). test.ps1 builds and runs those, so `HasTests` — which only sees
+		*_test.odin files — is not the whole test suite.
 	#>
 	$roots = $SourceRoots |
 		ForEach-Object { Join-Path $RepoRoot $_ } |
@@ -63,13 +69,61 @@ function Get-OdinPackage {
 		Sort-Object Name |
 		ForEach-Object {
 			$files = $_.Group
+			$relative = [System.IO.Path]::GetRelativePath($RepoRoot, $_.Name).Replace('\', '/')
+			$executable = [bool](Select-String -Path $files.FullName -Pattern '^\s*main\s*::\s*proc' -List -Quiet)
 			[pscustomobject]@{
-				Path         = [System.IO.Path]::GetRelativePath($RepoRoot, $_.Name).Replace('\', '/')
+				Path         = $relative
 				Name         = Split-Path $_.Name -Leaf
-				IsExecutable = [bool](Select-String -Path $files.FullName -Pattern '^\s*main\s*::\s*proc' -List -Quiet)
+				IsExecutable = $executable
 				HasTests     = [bool](@($files | Where-Object { $_.Name -like '*_test.odin' }).Count)
+				IsHarness    = $executable -and $relative.StartsWith('tests/')
 			}
 		}
+}
+
+function Sync-SdlRuntime {
+	<#
+	.SYNOPSIS
+		Puts SDL3.dll next to a freshly linked binary. Windows only; a no-op elsewhere.
+	.DESCRIPTION
+		engine/platform links SDL3 through `vendor:sdl3`, which on Windows resolves against
+		the vendored SDL3.lib — an import library. At RUN time the loader then looks for
+		SDL3.dll in the executable's own directory first, and nothing in the Odin toolchain
+		puts it there, so a perfectly linked binary dies with
+		"SDL3.dll: cannot open shared object file". Everywhere else `vendor:sdl3` links
+		`system:SDL3` and the dynamic loader finds it, so there is nothing to copy.
+
+		Cheap to call repeatedly: it skips the copy when the destination already holds the
+		same file.
+	#>
+	param(
+		[Parameter(Mandatory)]
+		[string]$Destination
+	)
+
+	if (-not $IsWindows) { return }
+
+	$root = & odin root
+	if ($LASTEXITCODE -ne 0 -or -not $root) {
+		Write-Host 'odin root failed; cannot locate SDL3.dll.' -ForegroundColor Yellow
+		return
+	}
+
+	$source = Join-Path $root.Trim() 'vendor/sdl3/SDL3.dll'
+	if (-not (Test-Path $source)) {
+		Write-Host "SDL3.dll not found at $source; SDL-linked binaries will not start." -ForegroundColor Yellow
+		return
+	}
+
+	$target = Join-Path $Destination 'SDL3.dll'
+	if (Test-Path $target) {
+		$have = Get-Item $target
+		$want = Get-Item $source
+		if ($have.Length -eq $want.Length -and $have.LastWriteTimeUtc -ge $want.LastWriteTimeUtc) {
+			return
+		}
+	}
+	Copy-Item -Path $source -Destination $target -Force
 }
 
 function Select-OdinPackage {
