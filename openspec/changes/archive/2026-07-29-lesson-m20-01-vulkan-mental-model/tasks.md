@@ -29,4 +29,4 @@
 - [x] 3.3 [you] Write Takeaways + Reflections in curriculum/JOURNAL.md (your own words)
 - [x] 3.4 [tutor] Copy lesson.md → curriculum/modules/m20/m20-01-vulkan-mental-model/LESSON.md
 - [x] 3.5 [tutor] Update curriculum/curriculum.yaml (m20-01 → done; m20-02 → available; clear active_change)
-- [ ] 3.6 [tutor] Commit the lesson; hand off to /opsx:archive
+- [x] 3.6 [tutor] Commit the lesson; hand off to /opsx:archive
