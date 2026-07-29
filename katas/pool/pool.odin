@@ -8,11 +8,11 @@ import "core:mem"
 // (`Free_Node` overlaid on each free block). A block is valid until it is freed or
 // free_all is called.
 Pool :: struct {
-	data:       []byte,     // borrowed backing storage (not owned)
-	block_size: int,        // effective slot stride: align_up(max(requested, size_of(rawptr)), alignment)
-	alignment: int,
+	data:       []byte, // borrowed backing storage (not owned)
+	block_size: int, // effective slot stride: align_up(max(requested, size_of(rawptr)), alignment)
+	alignment:  int,
 	head:       ^Free_Node, // first free block, or nil when the pool is exhausted
-	free_count: int,        // free blocks remaining (stats/debug)
+	free_count: int, // free blocks remaining (stats/debug)
 }
 
 // Free_Node overlays the first bytes of a *free* block; when the block is allocated,
@@ -94,7 +94,15 @@ allocator_proc :: proc(
 // (overwriting the stale free-list link left in the block); `.Alloc_Non_Zeroed` does not.
 // `size` must be in 1..=block_size — a larger request is .Invalid_Argument, and an empty
 // pool is .Out_Of_Memory.
-alloc :: proc(p: ^Pool, size: int, alignment: int, zero: bool) -> (data: []byte, err: mem.Allocator_Error) {
+alloc :: proc(
+	p: ^Pool,
+	size: int,
+	alignment: int,
+	zero: bool,
+) -> (
+	data: []byte,
+	err: mem.Allocator_Error,
+) {
 	if size == 0 {
 		return
 	}
@@ -115,7 +123,7 @@ alloc :: proc(p: ^Pool, size: int, alignment: int, zero: bool) -> (data: []byte,
 	block := p.head
 	p.head = block.next
 	p.free_count -= 1
-	
+
 	data = mem.byte_slice(block, size)
 	if zero {
 		mem.zero_slice(data)
@@ -127,8 +135,15 @@ alloc :: proc(p: ^Pool, size: int, alignment: int, zero: bool) -> (data: []byte,
 // The address must lie inside the pool's backing; freeing a foreign or already-freed
 // pointer corrupts the list. This is the allocator's .Free path.
 free_block :: proc(p: ^Pool, block: rawptr) {
-	assert(uintptr(block) >= uintptr(raw_data(p.data)) && uintptr(block) < uintptr(raw_data(p.data)) + uintptr(len(p.data)), "block must be within the pool's data")
-	assert((uintptr(block) - uintptr(raw_data(p.data))) % uintptr(p.block_size) == 0, "block must be aligned to the block size")
+	assert(
+		uintptr(block) >= uintptr(raw_data(p.data)) &&
+		uintptr(block) < uintptr(raw_data(p.data)) + uintptr(len(p.data)),
+		"block must be within the pool's data",
+	)
+	assert(
+		(uintptr(block) - uintptr(raw_data(p.data))) % uintptr(p.block_size) == 0,
+		"block must be aligned to the block size",
+	)
 	block := (^Free_Node)(block)
 	block.next = p.head
 	p.head = block
@@ -144,7 +159,7 @@ thread_free_list :: proc(p: ^Pool) {
 	p.free_count = len(p.data) / p.block_size
 	p.head = nil
 
-	for i in 0..<p.free_count {
+	for i in 0 ..< p.free_count {
 		block := (^Free_Node)(&p.data[i * p.block_size])
 		block.next = p.head
 		p.head = block

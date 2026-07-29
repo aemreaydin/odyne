@@ -220,5 +220,3 @@ resolve :: proc(p: ^Handle_Pool($T), h: Handle) -> (dense_idx: u32, ok: bool) {
 	}
 	return p.slots[slot_idx].dense_idx, true
 }
-
-

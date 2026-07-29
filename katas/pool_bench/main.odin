@@ -6,10 +6,10 @@ package main
 //
 // Run:  odin run katas/pool_bench -o:speed
 
+import pool "../pool"
 import "core:fmt"
 import "core:mem"
 import "core:time"
-import pool "../pool"
 
 main :: proc() {
 	N :: 100_000

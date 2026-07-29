@@ -35,5 +35,9 @@ test_zii_desc_defaults_are_pure :: proc(t: ^testing.T) {
 
 	// `hidden` has no default to apply, so it must pass through untouched — the bug this
 	// guards is defaulting dropping the field entirely and silently showing every window.
-	testing.expect(t, get_desc_or_default({hidden = true}).hidden, "hidden must survive defaulting")
+	testing.expect(
+		t,
+		get_desc_or_default({hidden = true}).hidden,
+		"hidden must survive defaulting",
+	)
 }

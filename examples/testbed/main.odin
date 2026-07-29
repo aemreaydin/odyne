@@ -113,7 +113,7 @@ main :: proc() {
 }
 
 Game :: struct {
-	x: f32,
+	x:    f32,
 	prev: f32,
 }
 

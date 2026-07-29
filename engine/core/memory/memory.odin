@@ -362,5 +362,3 @@ pool_thread_free_list :: proc(p: ^Pool) {
 		p.head = block
 	}
 }
-
-

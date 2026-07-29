@@ -13,4 +13,3 @@ boot :: proc() -> string {
 		render.info(),
 	)
 }
-

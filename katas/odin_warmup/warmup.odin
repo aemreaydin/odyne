@@ -69,4 +69,3 @@ sum_all :: proc(parts: []string) -> (total: u64, err: Parse_Error) {
 	}
 	return total, Parse_Error.None
 }
-

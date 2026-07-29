@@ -107,7 +107,11 @@ test_command_modifier_is_addressable :: proc(t: ^testing.T) {
 	input: Input_State
 
 	record_key(&input, .Left_Command, true)
-	testing.expect(t, input.keys[.Left_Command].ended_down, "the command modifier must be bindable")
+	testing.expect(
+		t,
+		input.keys[.Left_Command].ended_down,
+		"the command modifier must be bindable",
+	)
 	testing.expect(t, !input.keys[.Right_Command].ended_down, "L and R must be independent")
 }
 

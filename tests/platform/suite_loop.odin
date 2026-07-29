@@ -37,45 +37,44 @@ LOOP_TESTS := []Test_Case {
 // Probe — everything the callbacks record, so the assertions can be made after `run` returns.
 // Callbacks are plain procs (Odin has no closures), so this travels through `user: rawptr`.
 Probe :: struct {
-	stop_after:             u64, // request close once frame_index reaches this
-	hitch_on_frame:         u64, // sleep 2 s inside `frame` on this frame (0 ⇒ never)
-	hitch_for:              time.Duration,
-	pause_from:             u64, // set app.paused while frame_index is in [pause_from, pause_until]
-	pause_until:            u64,
-	sleep_per_frame:        time.Duration, // burn real time inside `frame`, to force steps to be owed
-	init_calls:             int,
-	frame_calls:            int,
-	step_calls:             int,
-	render_calls:           int,
-	shutdown_calls:         int,
+	stop_after:                  u64, // request close once frame_index reaches this
+	hitch_on_frame:              u64, // sleep 2 s inside `frame` on this frame (0 ⇒ never)
+	hitch_for:                   time.Duration,
+	pause_from:                  u64, // set app.paused while frame_index is in [pause_from, pause_until]
+	pause_until:                 u64,
+	sleep_per_frame:             time.Duration, // burn real time inside `frame`, to force steps to be owed
+	init_calls:                  int,
+	frame_calls:                 int,
+	step_calls:                  int,
+	render_calls:                int,
+	shutdown_calls:              int,
 
 	// per-frame ordering bookkeeping
-	seen_frame:             bool,
-	seen_render:            bool,
-	steps_this_frame:       int,
-	ordering_faults:        int,
-	count_mismatches:       int,
-	max_steps_in_a_frame:   int,
-	frames_with_zero_steps: int,
-	step_dt_min:            f32,
-	step_dt_max:            f32,
+	seen_frame:                  bool,
+	seen_render:                 bool,
+	steps_this_frame:            int,
+	ordering_faults:             int,
+	count_mismatches:            int,
+	max_steps_in_a_frame:        int,
+	frames_with_zero_steps:      int,
+	step_dt_min:                 f32,
+	step_dt_max:                 f32,
 
 	// snapshots
-	last_frame_index:       u64,
-	last_elapsed:           time.Duration,
-	last_sim_time:          time.Duration,
-	max_raw_dt:             time.Duration,
-	steps_after_hitch:      int,
-	sim_at_pause_start:     time.Duration,
-	sim_at_pause_end:       time.Duration,
-	elapsed_at_pause_start: time.Duration,
-	elapsed_at_pause_end:   time.Duration,
-	steps_on_resume_frame:  int,
-	steps_during_pause:     int,
+	last_frame_index:            u64,
+	last_elapsed:                time.Duration,
+	last_sim_time:               time.Duration,
+	max_raw_dt:                  time.Duration,
+	steps_after_hitch:           int,
+	sim_at_pause_start:          time.Duration,
+	sim_at_pause_end:            time.Duration,
+	elapsed_at_pause_start:      time.Duration,
+	elapsed_at_pause_end:        time.Duration,
+	steps_on_resume_frame:       int,
+	steps_during_pause:          int,
 	reported_steps_while_paused: int,
-
-	unlimited_until:      u64, // run unpaced while frame_index <= this, then pace (0 => never)
-	max_dt_after_pacing:  time.Duration,
+	unlimited_until:             u64, // run unpaced while frame_index <= this, then pace (0 => never)
+	max_dt_after_pacing:         time.Duration,
 }
 
 probe_init :: proc(app: ^game.App, user: rawptr) -> bool {

@@ -16,10 +16,10 @@ package main
 //
 // Run:  odin run katas/timing_bench -o:speed
 
+import tm "../timing"
 import "base:intrinsics"
 import "core:fmt"
 import "core:time"
-import tm "../timing"
 
 READS :: 10_000_000 // clock-read and query iterations
 FRAMES :: 100_000 // simulated frames for the drift and frame_start axes
@@ -123,7 +123,10 @@ wait_chunked :: proc(d: time.Duration) {
 }
 
 bench_sleep_overshoot :: proc() {
-	fmt.printfln("\n--- (b) sleep overshoot (%d trials each, overshoot = actual - requested) ---", TRIALS)
+	fmt.printfln(
+		"\n--- (b) sleep overshoot (%d trials each, overshoot = actual - requested) ---",
+		TRIALS,
+	)
 
 	durations := [?]time.Duration {
 		1 * time.Millisecond,

@@ -197,7 +197,11 @@ bench :: proc($T: typeid, $HT: typeid, label: string) {
 		sum_dl > 0 &&
 		csum > 0
 
-	fmt.printfln("── %s  (sums OK: %v) ──────────────────", label, ok)
+	fmt.printfln(
+		"── %s  (sums OK: %v) ──────────────────",
+		label,
+		ok,
+	)
 	fmt.printfln("add               : %6.2f ns/op    (kata 4.5)", ns_add)
 	fmt.printfln("remove            : %6.2f ns/op    (kata 3.0)", ns_remove)
 	fmt.printfln("add+remove churn  : %6.2f ns/cycle (kata 3.9)", ns_churn)

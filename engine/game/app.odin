@@ -186,7 +186,10 @@ run :: proc(cfg: App_Config, cb: App_Callbacks) -> App_Error {
 			// alpha is what the renderer interpolates with, and snapping it to 0 would jerk the
 			// picture back a whole step the moment the game is paused. The accumulator does not
 			// move while paused, so the pacer's current phase IS the frozen phase.
-			app.steps = {count = 0, alpha = timing.pacer_alpha(&app.pacer)}
+			app.steps = {
+				count = 0,
+				alpha = timing.pacer_alpha(&app.pacer),
+			}
 		} else {
 			app.steps = timing.pacer_advance(&app.pacer, dt)
 			// Loop-invariant: the step never changes while the pacer is running.

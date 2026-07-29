@@ -26,7 +26,11 @@ test_init_threads_free_list :: proc(t: ^testing.T) {
 	init(&p, backing[:], 32, 8) // stride 32 → 8 blocks
 	testing.expect_value(t, p.block_size, 32)
 	testing.expect_value(t, p.free_count, 8)
-	testing.expect(t, addr(raw_data(p.data)) == addr(raw_data(backing[:])), "pool borrows the caller's buffer")
+	testing.expect(
+		t,
+		addr(raw_data(p.data)) == addr(raw_data(backing[:])),
+		"pool borrows the caller's buffer",
+	)
 }
 
 @(test)
@@ -62,7 +66,7 @@ test_alloc_zeroes :: proc(t: ^testing.T) {
 	b, err := allocator_proc(&p, .Alloc, 32, 8, nil, 0)
 	testing.expect_value(t, err, mem.Allocator_Error.None)
 	testing.expect_value(t, len(b), 32)
-	for v in b {testing.expect_value(t, v, u8(0))} // .Alloc zeroes the whole block, incl. the old link bytes
+	for v in b {testing.expect_value(t, v, u8(0))} 	// .Alloc zeroes the whole block, incl. the old link bytes
 }
 
 @(test)
@@ -91,7 +95,11 @@ test_alloc_distinct_blocks :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(b1), 16)
 	testing.expect_value(t, len(b2), 16)
 	if len(b1) == 16 && len(b2) == 16 {
-		testing.expect(t, addr(raw_data(b1)) != addr(raw_data(b2)), "two allocations are different blocks")
+		testing.expect(
+			t,
+			addr(raw_data(b1)) != addr(raw_data(b2)),
+			"two allocations are different blocks",
+		)
 	}
 }
 
@@ -135,7 +143,11 @@ test_free_and_reuse :: proc(t: ^testing.T) {
 	b2, _ := allocator_proc(&p, .Alloc, 16, 8, nil, 0)
 	testing.expect_value(t, len(b2), 16)
 	if len(b1) == 16 && len(b2) == 16 {
-		testing.expect(t, addr(raw_data(b2)) == addr(raw_data(b1)), "LIFO free reuses the same block")
+		testing.expect(
+			t,
+			addr(raw_data(b2)) == addr(raw_data(b1)),
+			"LIFO free reuses the same block",
+		)
 	}
 }
 
@@ -181,8 +193,18 @@ test_query_features :: proc(t: ^testing.T) {
 	set: mem.Allocator_Mode_Set
 	_, err := allocator_proc(&p, .Query_Features, 0, 0, &set, 0)
 	testing.expect_value(t, err, mem.Allocator_Error.None)
-	expected := mem.Allocator_Mode_Set{.Alloc, .Alloc_Non_Zeroed, .Free, .Free_All, .Query_Features}
-	testing.expect(t, set == expected, "features must list exactly the supported modes (incl .Free)")
+	expected := mem.Allocator_Mode_Set {
+		.Alloc,
+		.Alloc_Non_Zeroed,
+		.Free,
+		.Free_All,
+		.Query_Features,
+	}
+	testing.expect(
+		t,
+		set == expected,
+		"features must list exactly the supported modes (incl .Free)",
+	)
 }
 
 // ── Integration: the pool plugs into context.allocator ───────────────────────

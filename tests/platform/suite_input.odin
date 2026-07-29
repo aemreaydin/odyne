@@ -42,12 +42,24 @@ sweep_keys :: proc(t: ^testing.T, h: platform.Window_Handle, msg: string) {
 	for k in platform.Key {
 		testing.expectf(t, !platform.key_down(h, k), "%s: %v must not report down", msg, k)
 		testing.expectf(t, !platform.key_pressed(h, k), "%s: %v must not report a press", msg, k)
-		testing.expectf(t, !platform.key_released(h, k), "%s: %v must not report a release", msg, k)
+		testing.expectf(
+			t,
+			!platform.key_released(h, k),
+			"%s: %v must not report a release",
+			msg,
+			k,
+		)
 	}
 	for b in platform.Mouse_Button {
 		testing.expectf(t, !platform.mouse_down(h, b), "%s: %v must not report down", msg, b)
 		testing.expectf(t, !platform.mouse_pressed(h, b), "%s: %v must not report a press", msg, b)
-		testing.expectf(t, !platform.mouse_released(h, b), "%s: %v must not report a release", msg, b)
+		testing.expectf(
+			t,
+			!platform.mouse_released(h, b),
+			"%s: %v must not report a release",
+			msg,
+			b,
+		)
 	}
 }
 

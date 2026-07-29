@@ -164,4 +164,3 @@ test_pool_context_allocator :: proc(t: ^testing.T) {
 		testing.expect(t, a != b, "distinct objects get distinct blocks")
 	}
 }
-

@@ -158,8 +158,8 @@ B_TARGET :: 60
 Loop_Probe :: struct {
 	count:   int,
 	dts:     [B_FRAMES]time.Duration, // per-frame REAL delta, pre-clamp
-	elapsed: time.Duration,           // clock elapsed at the last frame
-	steps:   [8]int,                  // histogram of steps per frame
+	elapsed: time.Duration, // clock elapsed at the last frame
+	steps:   [8]int, // histogram of steps per frame
 }
 
 probe_dts: Loop_Probe
@@ -202,8 +202,8 @@ run_loop_probe :: proc(unlimited: bool, hidden: bool) -> time.Duration {
 	probe_dts = {}
 	cfg := game.App_Config {
 		initial_window = {title = "odyne bench", hidden = hidden},
-		target_fps     = B_TARGET,
-		unlimited      = unlimited,
+		target_fps = B_TARGET,
+		unlimited = unlimited,
 	}
 	start := time.tick_now()
 	err := game.run(cfg, {user = &probe_dts, frame = probe_frame})
@@ -347,12 +347,14 @@ section_d :: proc() {
 	fmt.printfln("  derived steps*fixed_dt: %v  (the reference)", derived)
 	fmt.printfln("  accumulated in i64 ns:  %v  error %v", acc_i64, acc_i64 - derived)
 	f32_as_ns := time.Duration(f64(acc_f32) * 1e9)
+	fmt.printfln("  accumulated in f32 s:   %v  error %v", f32_as_ns, f32_as_ns - derived)
 	fmt.printfln(
-		"  accumulated in f32 s:   %v  error %v",
-		f32_as_ns,
-		f32_as_ns - derived,
+		"  conservation: fed %v == sim %v + acc %v -> %v",
+		fed,
+		derived,
+		p.accumulator,
+		fed == derived + p.accumulator,
 	)
-	fmt.printfln("  conservation: fed %v == sim %v + acc %v -> %v", fed, derived, p.accumulator, fed == derived + p.accumulator)
 
 	// The 60 Hz residue, for contrast with the 50 Hz default.
 	steps := i64(100_000)
@@ -383,7 +385,12 @@ NORMAL :: time.Duration(16_666_666)
 AFTER :: 10 // normal frames simulated after the hitch
 
 // Real clock + real pacer: the clamp is the clock's, so this is the engine's actual behaviour.
-spiral_with_clock :: proc(max_dt, clamp_dt: time.Duration) -> (hitch_steps: int, debt: time.Duration) {
+spiral_with_clock :: proc(
+	max_dt, clamp_dt: time.Duration,
+) -> (
+	hitch_steps: int,
+	debt: time.Duration,
+) {
 	c: timing.Frame_Clock
 	timing.clock_init(&c, at(0), max_dt, clamp_dt)
 	p: timing.Pacer
@@ -519,7 +526,7 @@ section_f :: proc() {
 			total += timing.history_min(&h) + timing.history_max(&h)
 		}
 		bench("history_min + history_max (scans)", N, time.tick_since(start), budget)
-		if total == 0 {fmt.println()} // keep the accumulator observable
+		if total == 0 {fmt.println()} 	// keep the accumulator observable
 	}
 	{
 		c: timing.Frame_Clock

@@ -506,4 +506,3 @@ test_clear_retires_live_slot_at_max_generation :: proc(t: ^testing.T) {
 	_, e := add(&p, Test_Item{value = 6})
 	testing.expect_value(t, e, Error.Full)
 }
-

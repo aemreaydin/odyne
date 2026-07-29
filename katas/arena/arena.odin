@@ -5,9 +5,9 @@ import "core:mem"
 
 Arena :: struct {
 	data:        []byte, // borrowed backing storage (not owned)
-	offset:      int,    // bytes used; the next allocation aligns up from here
-	prev_offset: int,    // start of the most recent allocation — enables the Resize fast path
-	peak_used:   int,    // high-water mark of `offset`, for the measurement task
+	offset:      int, // bytes used; the next allocation aligns up from here
+	prev_offset: int, // start of the most recent allocation — enables the Resize fast path
+	peak_used:   int, // high-water mark of `offset`, for the measurement task
 }
 
 init :: proc(a: ^Arena, backing: []byte) {
@@ -66,7 +66,14 @@ allocator_proc :: proc(
 	case .Query_Features:
 		set := (^mem.Allocator_Mode_Set)(old_memory)
 		if set != nil {
-			set^ = {.Alloc, .Alloc_Non_Zeroed, .Free_All, .Resize, .Resize_Non_Zeroed, .Query_Features}
+			set^ = {
+				.Alloc,
+				.Alloc_Non_Zeroed,
+				.Free_All,
+				.Resize,
+				.Resize_Non_Zeroed,
+				.Query_Features,
+			}
 		}
 		return nil, .None
 	case .Query_Info:
@@ -98,7 +105,15 @@ safe_add :: #force_inline proc "contextless" (a, b: $T) -> (T, bool) {
 	return val, !overflowed
 }
 
-alloc :: proc(a: ^Arena, size: int, alignment: int, zero: bool) -> (data: []byte, err: mem.Allocator_Error) {
+alloc :: proc(
+	a: ^Arena,
+	size: int,
+	alignment: int,
+	zero: bool,
+) -> (
+	data: []byte,
+	err: mem.Allocator_Error,
+) {
 	assert(size >= 0, "size must be non-negative")
 
 	aligned_offset, ok := align_forward(a, alignment)
@@ -124,7 +139,17 @@ alloc :: proc(a: ^Arena, size: int, alignment: int, zero: bool) -> (data: []byte
 	return
 }
 
-resize :: proc(a: ^Arena, old_memory: rawptr, old_size: int, size: int, alignment: int, zero: bool) -> (data: []byte, err: mem.Allocator_Error) {
+resize :: proc(
+	a: ^Arena,
+	old_memory: rawptr,
+	old_size: int,
+	size: int,
+	alignment: int,
+	zero: bool,
+) -> (
+	data: []byte,
+	err: mem.Allocator_Error,
+) {
 	old_data := ([^]byte)(old_memory)
 
 	if old_data == nil {
@@ -133,7 +158,7 @@ resize :: proc(a: ^Arena, old_memory: rawptr, old_size: int, size: int, alignmen
 
 	if uintptr(old_data) == uintptr(raw_data(a.data)) + uintptr(a.prev_offset) {
 		offset, ok := safe_add(a.prev_offset, size)
-		if !ok ||offset > len(a.data) {
+		if !ok || offset > len(a.data) {
 			err = .Out_Of_Memory
 			return
 		}

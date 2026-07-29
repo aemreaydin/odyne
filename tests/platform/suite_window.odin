@@ -33,13 +33,7 @@ PORTABLE_WINDOW_TESTS := []Test_Case {
 
 // opened creates a hidden window and asserts it came out valid, so a failure to create
 // reports once here rather than as a cascade of confusing downstream expectations.
-opened :: proc(
-	t: ^testing.T,
-	desc: platform.Window_Desc = {},
-) -> (
-	platform.Window_Handle,
-	bool,
-) {
+opened :: proc(t: ^testing.T, desc: platform.Window_Desc = {}) -> (platform.Window_Handle, bool) {
 	d := desc
 	d.hidden = true
 	h, err := platform.create_window(d)
@@ -172,7 +166,11 @@ test_mutators_apply_on_live_handles :: proc(t: ^testing.T) {
 	testing.expect(t, platform.should_close(h), "set_should_close(true) must be observable")
 	testing.expect_value(t, platform.set_window_title(h, "renamed"), platform.Window_Error.None)
 	testing.expect_value(t, platform.set_window_title(h, ""), platform.Window_Error.None)
-	testing.expect_value(t, platform.set_window_title(h, "ünïcødé ✕"), platform.Window_Error.None)
+	testing.expect_value(
+		t,
+		platform.set_window_title(h, "ünïcødé ✕"),
+		platform.Window_Error.None,
+	)
 }
 
 test_windows_are_independent :: proc(t: ^testing.T) {
@@ -243,7 +241,11 @@ test_framebuffer_is_a_scale_of_client :: proc(t: ^testing.T) {
 	fb := platform.framebuffer_size(h)
 
 	testing.expect(t, fb.x > 0 && fb.y > 0, "a live window's framebuffer must be non-empty")
-	testing.expect(t, fb.x >= client.x && fb.y >= client.y, "framebuffer must not be smaller than the logical size")
+	testing.expect(
+		t,
+		fb.x >= client.x && fb.y >= client.y,
+		"framebuffer must not be smaller than the logical size",
+	)
 	testing.expectf(
 		t,
 		fb.x % client.x == 0 && fb.y % client.y == 0,

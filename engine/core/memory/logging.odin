@@ -65,4 +65,3 @@ logging_allocator_proc :: proc(
 	)
 	return result, err
 }
-

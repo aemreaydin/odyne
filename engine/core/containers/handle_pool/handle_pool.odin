@@ -236,4 +236,3 @@ resolve_dense_idx :: proc(p: ^Handle_Pool($T, $HT), ht: HT) -> (dense_idx: u32, 
 	}
 	return dense_idx, true
 }
-

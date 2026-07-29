@@ -25,7 +25,7 @@ main :: proc() {
 	t2 := time.tick_now()
 	assert(err == .None, "bench window must create")
 
-	for _ in 0 ..< 16 { // drain creation-time messages before timing
+	for _ in 0 ..< 16 { 	// drain creation-time messages before timing
 		platform.poll_events()
 	}
 

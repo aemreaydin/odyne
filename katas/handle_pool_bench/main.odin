@@ -15,11 +15,11 @@ package main
 //
 // Run:  odin run katas/handle_pool_bench -o:speed
 
+import hp "../handle_pool"
+import pool "../pool"
 import "core:fmt"
 import "core:mem"
 import "core:time"
-import hp "../handle_pool"
-import pool "../pool"
 
 N :: 100_000
 PASSES :: 50
@@ -216,18 +216,28 @@ main :: proc() {
 		hcsum > 0
 
 	fmt.printfln("N=%d  passes=%d  entity=%dB  sums OK: %v", N, PASSES, size_of(Entity), ok)
-	fmt.println("── (a) lifecycle ───────────────────────────────────")
+	fmt.println(
+		"── (a) lifecycle ───────────────────────────────────",
+	)
 	fmt.printfln("hp add            : %6.2f ns/op    (pool 11.5 baseline)", hp_add)
 	fmt.printfln("hp remove         : %6.2f ns/op    (pool  4.5 baseline)", hp_remove)
 	fmt.printfln("hp add+remove     : %6.2f ns/cycle", hp_churn)
 	fmt.printfln("pool alloc+free   : %6.2f ns/cycle", pool_churn)
 	fmt.printfln("heap alloc+free   : %6.2f ns/cycle", heap_churn)
-	fmt.printfln("  hp vs pool churn: %.2fx   hp vs heap churn: %.2fx", pool_churn / hp_churn, heap_churn / hp_churn)
-	fmt.println("── (b/c) resolve ───────────────────────────────────")
+	fmt.printfln(
+		"  hp vs pool churn: %.2fx   hp vs heap churn: %.2fx",
+		pool_churn / hp_churn,
+		heap_churn / hp_churn,
+	)
+	fmt.println(
+		"── (b/c) resolve ───────────────────────────────────",
+	)
 	fmt.printfln("resolve in-order  : %6.2f ns/visit (m03-01: 0.41)", ns_b)
 	fmt.printfln("resolve shuffled  : %6.2f ns/visit (m03-01: 1.61)", ns_bs)
 	fmt.printfln("resolve ~50%% stale: %6.2f ns/visit", ns_c)
-	fmt.println("── (d) iteration ───────────────────────────────────")
+	fmt.println(
+		"── (d) iteration ───────────────────────────────────",
+	)
 	fmt.printfln("iterate  high occ : %6.2f ns/visit (%d live)", ns_dh, N)
 	fmt.printfln("iterate  low  occ : %6.2f ns/visit (%d live)", ns_dl, LOW)
 }

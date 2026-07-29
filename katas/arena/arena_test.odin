@@ -29,7 +29,11 @@ test_init_is_empty_over_backing :: proc(t: ^testing.T) {
 	init(&a, backing[:])
 	testing.expect_value(t, a.offset, 0)
 	testing.expect_value(t, len(a.data), 128)
-	testing.expect(t, addr(raw_data(a.data)) == addr(raw_data(backing[:])), "arena borrows the caller's buffer")
+	testing.expect(
+		t,
+		addr(raw_data(a.data)) == addr(raw_data(backing[:])),
+		"arena borrows the caller's buffer",
+	)
 }
 
 // ── Alloc: bump, bounds, zeroing ─────────────────────────────────────────────
@@ -48,13 +52,13 @@ test_alloc_returns_sized_slice :: proc(t: ^testing.T) {
 @(test)
 test_alloc_zeroes :: proc(t: ^testing.T) {
 	backing: [128]byte
-	for i in 0 ..< len(backing) {backing[i] = 0xAA} // dirty the backing
+	for i in 0 ..< len(backing) {backing[i] = 0xAA} 	// dirty the backing
 	a: Arena
 	init(&a, backing[:])
 	bytes, err := allocator_proc(&a, .Alloc, 32, 8, nil, 0)
 	testing.expect_value(t, err, mem.Allocator_Error.None)
 	testing.expect_value(t, len(bytes), 32)
-	for v in bytes {testing.expect_value(t, v, u8(0))} // .Alloc must zero
+	for v in bytes {testing.expect_value(t, v, u8(0))} 	// .Alloc must zero
 }
 
 @(test)
@@ -66,7 +70,7 @@ test_alloc_non_zeroed_does_not_zero :: proc(t: ^testing.T) {
 	bytes, err := allocator_proc(&a, .Alloc_Non_Zeroed, 32, 8, nil, 0)
 	testing.expect_value(t, err, mem.Allocator_Error.None)
 	testing.expect_value(t, len(bytes), 32)
-	for v in bytes {testing.expect_value(t, v, u8(0xAA))} // returned as-is, not zeroed
+	for v in bytes {testing.expect_value(t, v, u8(0xAA))} 	// returned as-is, not zeroed
 }
 
 @(test)
@@ -79,7 +83,11 @@ test_two_allocs_do_not_overlap :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(b1), 16)
 	testing.expect_value(t, len(b2), 16)
 	// second block begins at or after the end of the first
-	testing.expect(t, addr(raw_data(b2)) >= addr(raw_data(b1)) + 16, "allocations must not overlap")
+	testing.expect(
+		t,
+		addr(raw_data(b2)) >= addr(raw_data(b1)) + 16,
+		"allocations must not overlap",
+	)
 }
 
 // ── Alignment: the returned address honors `alignment`, even off a misaligned base ──
@@ -138,7 +146,7 @@ test_free_all_resets_and_reuses :: proc(t: ^testing.T) {
 	b1, _ := allocator_proc(&a, .Alloc, 32, 8, nil, 0)
 	testing.expect_value(t, len(b1), 32)
 	if len(b1) == 32 {
-		for i in 0 ..< 32 {b1[i] = 0xFF} // scribble
+		for i in 0 ..< 32 {b1[i] = 0xFF} 	// scribble
 	}
 	free_all(&a)
 	testing.expect_value(t, a.offset, 0)
@@ -146,7 +154,7 @@ test_free_all_resets_and_reuses :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(b2), 32)
 	if len(b2) == 32 {
 		testing.expect(t, addr(raw_data(b2)) == addr(raw_data(b1)), "reset reuses the same memory")
-		for v in b2 {testing.expect_value(t, v, u8(0))} // re-zeroed on re-alloc
+		for v in b2 {testing.expect_value(t, v, u8(0))} 	// re-zeroed on re-alloc
 	}
 }
 
@@ -179,8 +187,12 @@ test_resize_general_copies :: proc(t: ^testing.T) {
 	testing.expect_value(t, err, mem.Allocator_Error.None)
 	testing.expect_value(t, len(b3), 64)
 	if len(b1) == 16 && len(b3) == 64 {
-		testing.expect(t, addr(raw_data(b3)) != addr(raw_data(b1)), "a non-last block must relocate")
-		for i in 0 ..< 16 {testing.expect_value(t, b3[i], u8(i + 1))} // old contents preserved
+		testing.expect(
+			t,
+			addr(raw_data(b3)) != addr(raw_data(b1)),
+			"a non-last block must relocate",
+		)
+		for i in 0 ..< 16 {testing.expect_value(t, b3[i], u8(i + 1))} 	// old contents preserved
 	}
 }
 
@@ -196,7 +208,11 @@ test_resize_last_allocation_in_place :: proc(t: ^testing.T) {
 	testing.expect_value(t, err, mem.Allocator_Error.None)
 	testing.expect_value(t, len(b2), 64)
 	if len(b1) == 16 && len(b2) == 64 {
-		testing.expect(t, addr(raw_data(b2)) == addr(raw_data(b1)), "the last allocation grows in place")
+		testing.expect(
+			t,
+			addr(raw_data(b2)) == addr(raw_data(b1)),
+			"the last allocation grows in place",
+		)
 	}
 }
 
@@ -292,7 +308,7 @@ test_resize_in_place_grow_beyond_capacity_ooms :: proc(t: ^testing.T) {
 @(test)
 test_resize_grow_zeroes_tail :: proc(t: ^testing.T) {
 	backing: [128]byte
-	for i in 0 ..< len(backing) {backing[i] = 0xAA} // dirty the backing
+	for i in 0 ..< len(backing) {backing[i] = 0xAA} 	// dirty the backing
 	a: Arena
 	init(&a, backing[:])
 	b1, _ := allocator_proc(&a, .Alloc, 16, 8, nil, 0) // .Alloc zeroes [0,16); last block
@@ -300,7 +316,7 @@ test_resize_grow_zeroes_tail :: proc(t: ^testing.T) {
 	testing.expect_value(t, err, mem.Allocator_Error.None)
 	testing.expect_value(t, len(b2), 48)
 	if len(b2) == 48 {
-		for i in 16 ..< 48 {testing.expect_value(t, b2[i], u8(0))} // grown tail must be zeroed
+		for i in 16 ..< 48 {testing.expect_value(t, b2[i], u8(0))} 	// grown tail must be zeroed
 	}
 }
 
@@ -312,14 +328,13 @@ test_resize_in_place_grow_preserves_old :: proc(t: ^testing.T) {
 	b1, _ := allocator_proc(&a, .Alloc_Non_Zeroed, 16, 8, nil, 0) // last block
 	testing.expect_value(t, len(b1), 16)
 	if len(b1) == 16 {
-		for i in 0 ..< 16 {b1[i] = u8(i + 1)} // pattern 1..16
+		for i in 0 ..< 16 {b1[i] = u8(i + 1)} 	// pattern 1..16
 	}
 	b2, err := allocator_proc(&a, .Resize, 32, 8, raw_data(b1), 16) // .Resize grow in place
 	testing.expect_value(t, err, mem.Allocator_Error.None)
 	testing.expect_value(t, len(b2), 32)
 	if len(b2) == 32 {
-		for i in 0 ..< 16 {testing.expect_value(t, b2[i], u8(i + 1))} // OLD bytes must survive
-		for i in 16 ..< 32 {testing.expect_value(t, b2[i], u8(0))} // only the new tail is zeroed
+		for i in 0 ..< 16 {testing.expect_value(t, b2[i], u8(i + 1))} 	// OLD bytes must survive
+		for i in 16 ..< 32 {testing.expect_value(t, b2[i], u8(0))} 	// only the new tail is zeroed
 	}
 }
-

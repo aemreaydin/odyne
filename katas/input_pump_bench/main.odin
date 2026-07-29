@@ -18,11 +18,11 @@ package main
 // Run:  odin run katas/input_pump_bench -o:speed -collection:engine=engine \
 //         -extra-linker-flags:"-L/opt/homebrew/lib"
 
-import "core:fmt"
-import sdl "vendor:sdl3"
 import "core:c"
+import "core:fmt"
 import "core:time"
 import "engine:platform"
+import sdl "vendor:sdl3"
 
 PUMP_N :: 1_000_000
 BATCH :: 1_000 // per-round pushes
@@ -52,7 +52,7 @@ main :: proc() {
 	wid := bench_window_id()
 	assert(wid != 0, "bench window must be findable")
 
-	for _ in 0 ..< 16 { // drain creation-time messages before timing
+	for _ in 0 ..< 16 { 	// drain creation-time messages before timing
 		platform.poll_events()
 	}
 
@@ -154,10 +154,23 @@ main :: proc() {
 	budget_pct := frame_ns / 16_666_667.0 * 100.0
 
 	fmt.printfln("empty poll_events : %8.1f ns/frame  (N=%d; Win32 baseline 185)", pump_ns, PUMP_N)
-	fmt.printfln("empty pump, 4 win : %8.1f ns/frame  → retire ≈ %.1f ns/window", pump4_ns, retire_ns)
+	fmt.printfln(
+		"empty pump, 4 win : %8.1f ns/frame  → retire ≈ %.1f ns/window",
+		pump4_ns,
+		retire_ns,
+	)
 	fmt.printfln("mousemove flood   : %8.1f ns/event  (N=%d)", move_ns, BATCH * ROUNDS)
 	fmt.printfln("key flood         : %8.1f ns/event  (N=%d pushed)", key_ns, BATCH * ROUNDS)
-	fmt.printfln("1000 Hz mouse @60fps: %6.0f ns/frame = %.4f%% of 16.7 ms budget", frame_ns, budget_pct)
+	fmt.printfln(
+		"1000 Hz mouse @60fps: %6.0f ns/frame = %.4f%% of 16.7 ms budget",
+		frame_ns,
+		budget_pct,
+	)
 	fmt.printfln("key_down          : %8.2f ns/query  (N=%d, acc=%d)", key_query_ns, QUERY_N, acc)
-	fmt.printfln("mouse_position    : %8.2f ns/query  (N=%d, acc=%d)", pos_query_ns, QUERY_N, pos_acc)
+	fmt.printfln(
+		"mouse_position    : %8.2f ns/query  (N=%d, acc=%d)",
+		pos_query_ns,
+		QUERY_N,
+		pos_acc,
+	)
 }

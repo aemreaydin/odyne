@@ -18,8 +18,8 @@ package main
 
 import "core:c"
 import "core:testing"
-import sdl "vendor:sdl3"
 import "engine:platform"
+import sdl "vendor:sdl3"
 
 WIRING_TESTS := []Test_Case {
 	{"wiring/press_edge_lasts_one_frame", test_press_edge_lasts_one_frame},
@@ -114,7 +114,11 @@ test_autorepeat_produces_no_edge :: proc(t: ^testing.T) {
 	platform.poll_events()
 
 	testing.expect(t, platform.key_down(h, .W), "an autorepeat must leave the key down")
-	testing.expect(t, !platform.key_pressed(h, .W), "an autorepeat must NOT manufacture a press edge")
+	testing.expect(
+		t,
+		!platform.key_pressed(h, .W),
+		"an autorepeat must NOT manufacture a press edge",
+	)
 }
 
 test_release_edge :: proc(t: ^testing.T) {
@@ -132,7 +136,11 @@ test_release_edge :: proc(t: ^testing.T) {
 	testing.expect(t, platform.key_released(h, .W), "W must report a release edge that frame")
 
 	platform.poll_events()
-	testing.expect(t, !platform.key_released(h, .W), "the release edge must be gone the next frame")
+	testing.expect(
+		t,
+		!platform.key_released(h, .W),
+		"the release edge must be gone the next frame",
+	)
 }
 
 test_sub_frame_tap_is_not_lost :: proc(t: ^testing.T) {
@@ -148,7 +156,11 @@ test_sub_frame_tap_is_not_lost :: proc(t: ^testing.T) {
 	platform.poll_events()
 
 	testing.expect(t, platform.key_pressed(h, .Q), "a sub-frame tap must still show a press edge")
-	testing.expect(t, platform.key_released(h, .Q), "a sub-frame tap must still show a release edge")
+	testing.expect(
+		t,
+		platform.key_released(h, .Q),
+		"a sub-frame tap must still show a release edge",
+	)
 	testing.expect(t, !platform.key_down(h, .Q), "a sub-frame tap must not end the frame down")
 }
 
@@ -160,13 +172,21 @@ test_modifiers_are_side_specific :: proc(t: ^testing.T) {
 
 	push_key(wid, .LSHIFT, true)
 	platform.poll_events()
-	testing.expect(t, platform.key_down(h, .Left_Shift), "left shift must be observable on its own")
+	testing.expect(
+		t,
+		platform.key_down(h, .Left_Shift),
+		"left shift must be observable on its own",
+	)
 	testing.expect(t, !platform.key_down(h, .Right_Shift), "the right variant must be independent")
 
 	push_key(wid, .LSHIFT, false)
 	push_key(wid, .RGUI, true)
 	platform.poll_events()
-	testing.expect(t, platform.key_down(h, .Right_Command), "GUI/Command must map side-specifically")
+	testing.expect(
+		t,
+		platform.key_down(h, .Right_Command),
+		"GUI/Command must map side-specifically",
+	)
 	testing.expect(t, !platform.key_down(h, .Left_Command), "the left variant must be independent")
 }
 
@@ -221,7 +241,11 @@ test_button_edges :: proc(t: ^testing.T) {
 	push_button(wid, sdl.BUTTON_RIGHT, false)
 	platform.poll_events()
 	testing.expect(t, !platform.mouse_down(h, .Right), "right button must report up")
-	testing.expect(t, platform.mouse_released(h, .Right), "right button must report a release edge")
+	testing.expect(
+		t,
+		platform.mouse_released(h, .Right),
+		"right button must report a release edge",
+	)
 }
 
 test_wheel_accumulates_then_resets :: proc(t: ^testing.T) {
@@ -231,7 +255,9 @@ test_wheel_accumulates_then_resets :: proc(t: ^testing.T) {
 	if !ok {return}
 
 	for v in ([2]f32{1.0, 0.5}) {
-		ev := sdl.Event{wheel = {type = .MOUSE_WHEEL, windowID = wid, y = v}}
+		ev := sdl.Event {
+			wheel = {type = .MOUSE_WHEEL, windowID = wid, y = v},
+		}
 		_ = sdl.PushEvent(&ev)
 	}
 	platform.poll_events()
@@ -257,7 +283,9 @@ test_focus_loss_clears_silently :: proc(t: ^testing.T) {
 	testing.expect(t, platform.key_down(h, .W), "precondition: key held")
 	testing.expect(t, platform.mouse_down(h, .Left), "precondition: button held")
 
-	focus_lost := sdl.Event{window = {type = .WINDOW_FOCUS_LOST, windowID = wid}}
+	focus_lost := sdl.Event {
+		window = {type = .WINDOW_FOCUS_LOST, windowID = wid},
+	}
 	_ = sdl.PushEvent(&focus_lost)
 	platform.poll_events()
 
@@ -266,7 +294,11 @@ test_focus_loss_clears_silently :: proc(t: ^testing.T) {
 	testing.expect(t, !platform.key_down(h, .W), "focus loss must clear the held key")
 	testing.expect(t, !platform.key_released(h, .W), "focus loss must NOT produce a release edge")
 	testing.expect(t, !platform.mouse_down(h, .Left), "focus loss must clear the held button")
-	testing.expect(t, !platform.mouse_released(h, .Left), "focus loss must NOT produce a release edge")
+	testing.expect(
+		t,
+		!platform.mouse_released(h, .Left),
+		"focus loss must NOT produce a release edge",
+	)
 	testing.expect(t, !platform.has_focus(h), "the window must report unfocused")
 
 	// The cursor is a position, not a transition — it survives.
@@ -293,5 +325,9 @@ test_events_route_per_window :: proc(t: ^testing.T) {
 	testing.expect_value(t, platform.destroy_window(w1), platform.Window_Error.None)
 	push_key(id2, .B, true)
 	platform.poll_events()
-	testing.expect(t, platform.key_down(w2, .B), "routing must survive the survivor being relocated")
+	testing.expect(
+		t,
+		platform.key_down(w2, .B),
+		"routing must survive the survivor being relocated",
+	)
 }

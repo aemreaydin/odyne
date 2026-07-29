@@ -6,10 +6,10 @@ package main
 //
 // Run:  odin run katas/arena_bench -o:speed
 
+import arena "../arena"
 import "core:fmt"
 import "core:mem"
 import "core:time"
-import arena "../arena"
 
 main :: proc() {
 	N :: 100_000
@@ -56,6 +56,16 @@ main :: proc() {
 	fmt.printfln("arena alloc : %.2f ns/alloc", arena_alloc_ns)
 	fmt.printfln("heap  alloc : %.2f ns/alloc", heap_alloc_ns)
 	fmt.printfln("alloc speedup (heap/arena): %.1fx", heap_alloc_ns / arena_alloc_ns)
-	fmt.printfln("arena free_all (all %d)   : %.0f ns total  (%.4f ns/obj)", N, arena_freeall_ns, arena_freeall_ns / f64(N))
-	fmt.printfln("heap  free (%d individual): %.0f ns total  (%.2f ns/obj)", N, heap_free_ns, heap_free_ns / f64(N))
+	fmt.printfln(
+		"arena free_all (all %d)   : %.0f ns total  (%.4f ns/obj)",
+		N,
+		arena_freeall_ns,
+		arena_freeall_ns / f64(N),
+	)
+	fmt.printfln(
+		"heap  free (%d individual): %.0f ns total  (%.2f ns/obj)",
+		N,
+		heap_free_ns,
+		heap_free_ns / f64(N),
+	)
 }
