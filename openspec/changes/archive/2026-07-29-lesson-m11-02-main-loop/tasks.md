@@ -69,4 +69,4 @@
 - [x] 6.3 [you] Write Takeaways + Reflections in curriculum/JOURNAL.md (your own words) (verified 2026-07-29)
 - [x] 6.4 [tutor] Copy lesson.md -> curriculum/modules/m11/m11-02-main-loop/LESSON.md (done 2026-07-29, incl. the 1.3 pacing-industry section and the 1.4 derive-vs-accumulate correction)
 - [x] 6.5 [tutor] Update curriculum/curriculum.yaml (m11-02 -> done; m20-01 -> available; active_change cleared)
-- [ ] 6.6 [tutor] Commit the lesson; hand off to /opsx:archive
+- [x] 6.6 [tutor] Commit the lesson; hand off to /opsx:archive (committed 925da40; specs core-timing + game-loop synced into openspec/specs/ - including m11-01's deferred frame-clock delta; archived 2026-07-29)
