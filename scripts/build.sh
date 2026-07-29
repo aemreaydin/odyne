@@ -8,34 +8,22 @@
 # dev machine as of 2026-07-27, hence this. Prefer the .ps1 scripts where pwsh exists;
 # `brew install powershell` makes that true.
 #
-# The flags below are copied from scripts/common.ps1 and MUST be kept in sync with it.
+# scripts/test.sh is the port of test.ps1 and does discover packages; this script keeps its
+# own hardcoded sweep because it is the one-command "is everything green" entry point.
 set -uo pipefail
 
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
-
-ODIN_FLAGS=(
-	-vet
-	-vet-cast
-	-vet-tabs
-	-vet-using-param
-	-strict-style
-	-warnings-as-errors
-	-error-pos-style:unix
-)
-ODIN_COLLECTIONS=(-collection:engine=engine)
-
-# vendor:sdl3 links `system:SDL3` off Windows, so point the linker at Homebrew's lib dir.
-BREW_PREFIX="$(brew --prefix 2>/dev/null || echo /opt/homebrew)"
-ODIN_LINK_FLAGS=("-extra-linker-flags:-L${BREW_PREFIX}/lib")
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+cd "$REPO_ROOT"
 
 mkdir -p build build/tests
 
+total=0
 failed=()
-step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 
 run() { # run <label> <cmd...>
 	local label="$1"; shift
 	step "$label"
+	total=$((total + 1))
 	if ! "$@"; then failed+=("$label"); fi
 }
 
@@ -58,9 +46,4 @@ fi
 run "build examples/testbed" odin build examples/testbed "${ODIN_FLAGS[@]}" \
 	"${ODIN_COLLECTIONS[@]}" "${ODIN_LINK_FLAGS[@]}" -out:build/testbed
 
-if ((${#failed[@]})); then
-	printf '\n\033[31m%d failed:\033[0m\n' "${#failed[@]}"
-	printf '  %s\n' "${failed[@]}"
-	exit 1
-fi
-printf '\n\033[32mAll green.\033[0m\n'
+write_summary 'Build' "$total" steps ${failed[@]+"${failed[@]}"}
