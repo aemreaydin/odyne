@@ -19,7 +19,10 @@
 
 ## 3. Spec
 
-- [ ] 3.1 [tutor] Write stubs (signatures + `unimplemented()`) at the agreed interface
+- [ ] 3.1 [tutor] Write stubs at the agreed interface: signatures + doc comments, bodies are
+      `unimplemented()` and nothing else. Comments state consequence, not procedure — a
+      comment narrating the body is a rung-2/3 hint delivered unprompted. Every definition
+      unless trivial; no file-wide comments. See `.claude/skills/tutor/references/stub-style.md`
 - [ ] 3.2 [tutor] Write failing tests; run `odin test` to confirm red
 
 ## 4. Build
