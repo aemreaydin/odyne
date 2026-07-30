@@ -170,39 +170,6 @@ test_dt_and_elapsed_conversions :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_frame_deadline_derives_from_origin :: proc(t: ^testing.T) {
-	clock: Frame_Clock
-	clock_init(&clock, at(0), max_dt = 0)
-
-	// Frame 0's deadline: origin + one period.
-	testing.expect_value(t, frame_deadline(&clock, FRAME_60), at(FRAME_60_NS))
-
-	frame_start(&clock, at(FRAME_60_NS))
-	frame_start(&clock, at(2 * FRAME_60_NS))
-	frame_start(&clock, at(3 * FRAME_60_NS))
-
-	// Frame 3's deadline: origin + 4 periods — computed from the ORIGIN, so drift is
-	// impossible no matter what the individual frames did.
-	testing.expect_value(t, clock.frame_index, u64(3))
-	testing.expect_value(t, frame_deadline(&clock, FRAME_60), at(4 * FRAME_60_NS))
-}
-
-@(test)
-test_frame_deadline_is_past_after_an_overrun :: proc(t: ^testing.T) {
-	clock: Frame_Clock
-	clock_init(&clock, at(0), max_dt = 0)
-
-	frame_start(&clock, at(500 * i64(time.Millisecond))) // a 500 ms frame at a 16.7 ms target
-
-	deadline := frame_deadline(&clock, FRAME_60)
-	testing.expect(
-		t,
-		time.tick_diff(deadline, clock.prev) > 0,
-		"after an overrun the current frame's deadline is already in the past",
-	)
-}
-
-@(test)
 test_history_empty_then_partial_window :: proc(t: ^testing.T) {
 	h: Frame_History
 

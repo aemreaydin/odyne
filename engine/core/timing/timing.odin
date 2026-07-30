@@ -87,19 +87,6 @@ elapsed_seconds :: proc(clock: ^Frame_Clock) -> f64 {
 	return time.duration_seconds(clock.elapsed)
 }
 
-/*
-The current frame's deadline on an origin-anchored grid, `origin + (frame_index+1)*period`.
-Overshoot is corrected rather than accumulated, but the grid is only meaningful while every
-frame has been paced to it — the engine's own loop anchors on the frame start instead, and
-does not call this.
-
-`period` must be a small duration in nanoseconds. A period near `MAX_DURATION`, or one in
-platform ticks rather than nanoseconds, overflows the multiply.
-*/
-frame_deadline :: proc(clock: ^Frame_Clock, period: time.Duration) -> time.Tick {
-	return time.tick_add(clock.origin, time.Duration(clock.frame_index + 1) * period)
-}
-
 // Records one frame duration. Called by `frame_start`; public so the history stands alone.
 history_push :: proc(h: ^Frame_History, d: time.Duration) {
 	size := len(h.samples)

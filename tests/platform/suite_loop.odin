@@ -489,7 +489,7 @@ test_optional_callbacks_are_safe :: proc(t: ^testing.T) {
 test_limiter_can_be_re_enabled_mid_run :: proc(t: ^testing.T) {
 	// Turning pacing OFF and back ON must not stall the app.
 	//
-	// The hazard is `frame_deadline`'s absolute grid: it answers
+	// The hazard is an origin-anchored deadline grid:
 	// `origin + (frame_index + 1) * period`, which is only meaningful while every frame has
 	// actually been paced to that period. Unpaced frames still increment frame_index without
 	// consuming their grid slot, so after a burst of free-running frames the grid sits far in the
