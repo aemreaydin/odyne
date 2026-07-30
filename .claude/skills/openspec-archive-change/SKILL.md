@@ -68,7 +68,25 @@ Archive a completed change in the experimental workflow.
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
-5. **Perform the archive**
+5. **Close out any placeholder Purpose**
+
+   Syncing or archiving a capability for the first time creates
+   `openspec/specs/<capability>/spec.md` with a placeholder Purpose — the `openspec archive`
+   CLI writes one directly, so this check is needed even when the sync skill was not used.
+   Both variants start the same way:
+
+   ```bash
+   grep -rn "TBD - created by" openspec/specs/
+   ```
+
+   For every hit, replace the placeholder with a written Purpose: what the capability covers
+   and where its boundary sits, drawn from that spec's own requirement headings rather than
+   invented. Two or three sentences; `core-timing` and `game-loop` are the reference shape.
+
+   This runs here, and not as a lesson finalize task, because the placeholder does not exist
+   until the sync or archive has written it.
+
+6. **Perform the archive**
 
    Create an `archive` directory under `planningHome.changesDir` if it doesn't exist:
    ```bash
@@ -85,13 +103,14 @@ Archive a completed change in the experimental workflow.
    mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
    ```
 
-6. **Display summary**
+7. **Display summary**
 
    Show archive completion summary including:
    - Change name
    - Schema that was used
    - Archive location
    - Whether specs were synced (if applicable)
+   - Any Purpose sections written for newly created capability specs
    - Note about any warnings (incomplete artifacts/tasks)
 
 **Output On Success**
@@ -103,6 +122,7 @@ Archive a completed change in the experimental workflow.
 **Schema:** <schema-name>
 **Archived to:** the archive path derived from `planningHome.changesDir`/YYYY-MM-DD-<name>/
 **Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
+**Purpose:** ✓ Written for <n> new capability spec(s) (or "No new capabilities")
 
 All artifacts complete. All tasks complete.
 ```
@@ -115,3 +135,4 @@ All artifacts complete. All tasks complete.
 - Show clear summary of what happened
 - If sync is requested, use openspec-sync-specs approach (agent-driven)
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
+- Never leave a capability spec carrying a `TBD - created by ...` Purpose; write it before archiving

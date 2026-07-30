@@ -6,7 +6,6 @@ artifact chain, the `[tutor]`/`[you]` ownership tags and the hard-stop they impo
 apply, the rule that a learner designs the interface before tests exist, the requirement that
 lesson spec deltas describe the engine capability rather than the lesson, and the archive
 ritual that persists the explanation and merges the deltas.
-
 ## Requirements
 ### Requirement: One lesson, one change
 Each lesson SHALL run as exactly one OpenSpec change using the project-local `lesson` schema, with lesson-shaped artifacts: `lesson.md` (explanation with citations), `design.md` (learner API sketch + tutor critique), `specs/` (requirements for the engine capability being built), and `tasks.md` (ownership-tagged checklist).
@@ -49,9 +48,19 @@ Each lesson's `specs/` delta SHALL specify the engine capability being built or 
 - **THEN** its spec delta merges into `openspec/specs/<capability>/spec.md` reflecting what the engine now provably does
 
 ### Requirement: Archive ritual
-Archiving a lesson SHALL produce all of the following, via the lesson's finalize task group plus the standard archive command: (1) spec deltas merged into `openspec/specs/`; (2) the lesson explanation — measured numbers included — persisted under `curriculum/modules/<module>/<lesson>/`; (3) `curriculum.yaml` updated (lesson `done`, newly unblocked lessons `available`).
+Archiving a lesson SHALL produce all of the following, via the lesson's finalize task group plus the standard archive command: (1) spec deltas merged into `openspec/specs/`; (2) the lesson explanation — measured numbers included — persisted under `curriculum/modules/<module>/<lesson>/`; (3) `curriculum.yaml` updated (lesson `done`, newly unblocked lessons `available`); (4) a written Purpose on every capability spec the archive created, describing what the capability covers and where its boundary sits.
+
+A capability spec SHALL NOT be left carrying the placeholder Purpose the archive command writes when it creates the file. Because that placeholder does not exist until the archive runs, effect (4) SHALL be discharged by the archive step itself rather than by a finalize task.
 
 #### Scenario: Lesson completes
 - **WHEN** review is complete and the lesson change is archived
-- **THEN** all three effects are present in the repository in the same commit or commit series
+- **THEN** all four effects are present in the repository in the same commit or commit series
+
+#### Scenario: A lesson introduces a new capability
+- **WHEN** the archive creates `openspec/specs/<capability>/spec.md` for a capability that did not exist before
+- **THEN** that spec's Purpose describes the capability, and no placeholder text remains in it
+
+#### Scenario: A lesson only extends existing capabilities
+- **WHEN** the archive merges deltas into capability specs that already exist
+- **THEN** their existing Purposes are left alone and no new Purpose is required
 

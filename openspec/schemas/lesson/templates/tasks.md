@@ -40,4 +40,6 @@
 - [ ] 6.2 [tutor] Walk the learner through what the numbers mean
 - [ ] 6.3 [tutor] Copy lesson.md → curriculum/modules/<module>/<lesson>/LESSON.md
 - [ ] 6.4 [tutor] Update curriculum/curriculum.yaml (status, unlocks, clear active pointer)
-- [ ] 6.5 [tutor] Commit the lesson; hand off to /opsx:archive
+- [ ] 6.5 [tutor] Commit the lesson; hand off to /opsx:archive — which merges the spec
+      deltas and, for any capability created by this lesson, writes its Purpose before
+      archiving (no `TBD` placeholder survives the ritual)

@@ -76,7 +76,11 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
    d. **Create new main spec** if capability doesn't exist yet:
       - Create `openspec/specs/<capability>/spec.md`
-      - Add Purpose section (can be brief, mark as TBD)
+      - Write a real Purpose section — what the capability covers and where its boundary
+        sits, drawn from the requirements you are about to write. Do NOT leave a `TBD`
+        placeholder: nothing comes back for it, and it becomes the first thing every
+        reader of that spec meets. Two or three sentences is enough; `core-timing` and
+        `game-loop` are the reference shape.
       - Add Requirements section with the ADDED requirements
 
 5. **Show summary**
