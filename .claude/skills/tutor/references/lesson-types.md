@@ -8,13 +8,13 @@ Five types. The `tasks.md` template scales to fit — keep the canonical group o
 Reading/understanding lesson, no code exercise.
 - Groups: Orient, Review (recall questions instead of diff review), Finalize.
 - `design.md` Agreed interface: "Not applicable".
-- Definition of done: recall questions answered well; journal entry.
+- Definition of done: recall questions answered well; LESSON.md persisted.
 
 ## kata
 Isolated implementation exercise in `katas/<topic>/`, unit-testable.
 - All groups. Tutor writes stubs + failing tests; learner implements to green.
-- Definition of done: tests green · leak check clean · measurement task recorded ·
-  review passed · probes answered.
+- Definition of done: tests green · leak check clean · measurement recorded under the
+  lesson's Performance notes · review passed · probes answered.
 - Often followed by a graduate task (small `build` lesson) moving the code into `engine/`.
 
 ## build
@@ -35,5 +35,5 @@ The deliverable is a design, not an implementation (e.g., the RHI seam).
 A playable thing (Breakout, Game 2). Integration project spanning multiple sessions.
 - All groups; Build is dominant and may iterate Spec↔Build several times.
 - Definition of done: it runs and is playable · stats overlay shows frame numbers ·
-  retrospective journal entry (what the engine was missing, what hurt) — that
-  retrospective feeds the next module's priorities.
+  retrospective recorded in the re-planning change that follows (what the engine was
+  missing, what hurt) — that retrospective sets the next module's priorities.

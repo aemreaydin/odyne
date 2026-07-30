@@ -31,12 +31,12 @@ A fresh session SHALL be able to reconstruct full working position from files on
 - **WHEN** a new session begins and `curriculum.yaml` points at an active lesson
 - **THEN** the tutor summarizes the lesson, the completed tasks, and the first incomplete task, then continues from exactly there
 
-### Requirement: Journal
-Each completed lesson SHALL append one entry to `curriculum/JOURNAL.md` containing: date, lesson id, what was built, measured performance numbers (when the lesson had a measurement task), review takeaways, and the learner's reflections.
+### Requirement: Completed lessons are recorded in place
+A completed lesson's record SHALL be its persisted `curriculum/modules/<module>/<lesson>/LESSON.md` — including the measured numbers under its "Performance notes → Measured" section — plus the merged spec deltas under `openspec/specs/`. No separate per-lesson log SHALL be maintained.
 
 #### Scenario: Lesson archived
 - **WHEN** a lesson is archived
-- **THEN** `JOURNAL.md` contains an entry for it with the required fields
+- **THEN** `curriculum/modules/<module>/<lesson>/LESSON.md` exists and carries the lesson's measured numbers, and no journal entry is written
 
 ### Requirement: Progress report
 On request, the tutor SHALL report progress as a module/lesson tree with statuses and a short "you are here" summary derived from `curriculum.yaml`.

@@ -44,9 +44,9 @@ Each lesson's `specs/` delta SHALL specify the engine capability being built or 
 - **THEN** its spec delta merges into `openspec/specs/<capability>/spec.md` reflecting what the engine now provably does
 
 ### Requirement: Archive ritual
-Archiving a lesson SHALL produce all of the following, via the lesson's finalize task group plus the standard archive command: (1) spec deltas merged into `openspec/specs/`; (2) the lesson explanation persisted under `curriculum/modules/<module>/<lesson>/`; (3) `curriculum.yaml` updated (lesson `done`, newly unblocked lessons `available`); (4) a journal entry appended to `JOURNAL.md`.
+Archiving a lesson SHALL produce all of the following, via the lesson's finalize task group plus the standard archive command: (1) spec deltas merged into `openspec/specs/`; (2) the lesson explanation — measured numbers included — persisted under `curriculum/modules/<module>/<lesson>/`; (3) `curriculum.yaml` updated (lesson `done`, newly unblocked lessons `available`).
 
 #### Scenario: Lesson completes
 - **WHEN** review is complete and the lesson change is archived
-- **THEN** all four effects are present in the repository in the same commit or commit series
+- **THEN** all three effects are present in the repository in the same commit or commit series
 

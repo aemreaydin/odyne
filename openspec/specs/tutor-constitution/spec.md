@@ -45,12 +45,12 @@ Every `lesson.md` SHALL include an "In the industry" section describing how ship
 - **THEN** it contains an "In the industry" section whose claims carry cite-keys registered in `BIBLIOGRAPHY.md`
 
 ### Requirement: Performance measurement task
-Every kata- or build-type lesson SHALL include at least one measurement task — a benchmark, a trace capture, or a budget estimate — and the measured numbers SHALL be recorded in the lesson's journal entry.
+Every kata- or build-type lesson SHALL include at least one measurement task — a benchmark, a trace capture, or a budget estimate — and the measured numbers SHALL be recorded in a "Measured" subsection under that lesson's "Performance notes", where they are persisted with the lesson.
 
 #### Scenario: Kata lesson completion
 - **WHEN** a kata lesson's implementation tasks are complete
 - **THEN** a measurement task remains before the lesson can be reviewed and archived
-- **AND** its results are written into `JOURNAL.md`
+- **AND** its results are written into the lesson's "Performance notes → Measured" section
 
 ### Requirement: Test-first discipline
 Tutor-authored tests MUST compile against the stubs and MUST fail before the learner's implementation exists (red before green). Tests SHALL use Odin's `core:testing` framework so the runner's per-test leak checking applies.

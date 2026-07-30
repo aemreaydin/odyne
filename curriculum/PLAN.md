@@ -89,7 +89,8 @@ the whole curriculum: it requires the DX12 backend, the job system, and the ECS.
 ## Milestones gate progress
 
 Nothing in phase 4 opens until Breakout is `done`; Game 2 closes the curriculum.
-Milestones end with a retrospective journal entry, and that retrospective is the
-designated moment to **re-plan**: locked modules may be added, resized, or reordered
-via a small OpenSpec change touching `curriculum.yaml` and this plan together.
+Milestones end with a retrospective, and that retrospective is the designated moment
+to **re-plan**: locked modules may be added, resized, or reordered via a small
+OpenSpec change — which is where the retrospective itself is recorded — touching
+`curriculum.yaml` and this plan together.
 `done` lessons are never rewritten; statuses only move forward.

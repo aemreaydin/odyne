@@ -28,6 +28,13 @@
 <!-- Cost model, cache/allocation behavior, budgets. Defines this lesson's
      measurement task (benchmark, trace capture, or budget estimate). -->
 
+### Measured
+
+<!-- Filled by the tutor at finalize, after running the measurement task: the
+     numbers, the tool/version they came from, and how they compare to the cost
+     model above. Left as "Not applicable" only when the lesson defines no
+     measurement task. -->
+
 ## Exercise
 
 <!-- What the learner builds: package path, stub locations, test command
@@ -35,8 +42,8 @@
 
 ### Definition of done
 
-<!-- Checklist, e.g.: tests green · leak-check clean · measurement recorded in
-     JOURNAL.md · review passed · comprehension probes answered -->
+<!-- Checklist, e.g.: tests green · leak-check clean · measurement recorded under
+     Performance notes · review passed · comprehension probes answered -->
 
 ## Reading list
 

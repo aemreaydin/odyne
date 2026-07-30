@@ -24,7 +24,8 @@ artifacts:
       cited via cite-keys.
 
       - Include "Performance notes": cost model, cache/allocation behavior, and the
-      lesson's measurement task.
+      lesson's measurement task, with an empty "Measured" subsection the tutor fills
+      at finalize once the measurement has been run.
 
       - Orient, don't exhaust: the explanation frames the topic; the reading list's
       primary sources do the deep teaching.

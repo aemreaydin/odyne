@@ -1,10 +1,12 @@
-# Learning journal
+# Learning journal (closed — covers lessons through m20-01)
 
-One entry per completed lesson, newest first. The learner writes the reflections —
-in their own words; that's part of the learning. Measured numbers come from the
-lesson's measurement task.
+**No longer maintained.** Lessons up to and including `m20-01` recorded a journal entry
+here; nothing is appended after that. Measured numbers now live in each lesson's own
+"Performance notes → Measured" section, persisted at
+`curriculum/modules/<module>/<lesson>/LESSON.md`, next to the cost model that predicted
+them. The entries below are kept for their measurements and notes.
 
-## Entry format
+Historical entry format, newest first:
 
 ```
 ## YYYY-MM-DD — <lesson id>: <title>
