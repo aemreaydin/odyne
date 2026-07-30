@@ -1,7 +1,12 @@
 # bibliography Specification
 
 ## Purpose
-TBD - created by archiving change add-tutor-skill. Update Purpose after archive.
+Citation discipline. Every factual claim in a lesson or review carries a cite-key registered
+in `curriculum/BIBLIOGRAPHY.md`, with the chapter, section or timestamp the source provides.
+Covers the registry's entry format, the rule that only registered keys may be cited, the
+link-verification required before a new key is registered, and the expected granularity of a
+citation.
+
 ## Requirements
 ### Requirement: Cite-key registry
 `curriculum/BIBLIOGRAPHY.md` SHALL hold every source the curriculum references, one entry per source, each with: a stable unique cite-key (e.g., `GEA`, `GB-MEM`, `VKGUIDE`), full title, author(s), type (book, article, video, talk, code, docs), URL and/or ISBN, and the date the entry was added or last verified.

@@ -1,7 +1,11 @@
 # engine-skeleton Specification
 
 ## Purpose
-TBD - created by archiving change lesson-m01-01-skeleton. Update Purpose after archive.
+The project's build and package skeleton. Defines the layered package structure that the
+layering law is enforced against (`core → platform → render → game`, dependencies downward
+only), a buildable application entry point, the build information `core` exposes, and the
+toolchain-gated build and test workflow the scripts implement.
+
 ## Requirements
 ### Requirement: Layered package structure
 The engine SHALL be organized into the packages `core`, `platform`, `render`, and `game` (one Odin package per directory under `engine/`), addressable through an `engine` import collection. Inter-package imports SHALL point downward only, in the order `core → platform → render → game`; no package SHALL import a package at its own layer or above it.

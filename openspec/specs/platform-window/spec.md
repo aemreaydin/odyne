@@ -1,7 +1,11 @@
 # platform-window Specification
 
 ## Purpose
-TBD - created by archiving change lesson-m10-01-win32-window. Update Purpose after archive.
+Native windowing behind a handle-based API. Covers the window lifecycle, the rule that a close
+is a request the application may decline rather than a command, the non-blocking event pump,
+confinement of OS types to the backend files, uniform error reporting, the distinction between
+logical and pixel size, and headless-capable windows for tests.
+
 ## Requirements
 
 ### Requirement: Native window lifecycle

@@ -1,7 +1,11 @@
 # engine-curriculum Specification
 
 ## Purpose
-TBD - created by syncing change add-engine-curriculum. Update Purpose after archive.
+The curriculum's shape as data. Defines the six ordered phases, the soundness properties the
+module DAG must hold (acyclic, resolvable, reachable), the milestone gates between phases,
+the kata-then-graduate pattern for fundamentals, where the RHI lesson sits, the bibliography
+coverage the seed must carry, and the narrative plan document that accompanies the map.
+
 ## Requirements
 ### Requirement: Phase structure
 The curriculum SHALL organize modules into six ordered phases: 0 Foundations (Odin, tooling, memory, containers), 1 Platform, 2 Renderer I (Vulkan 2D), 3 Game & Milestone 1, 4 Engine systems (assets, jobs, ECS, 3D rendering), 5 RHI & Milestone 2 (DX12, Game 2). Every module SHALL belong to exactly one phase, and no module SHALL list a prerequisite from a higher-numbered phase.

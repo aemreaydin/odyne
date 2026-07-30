@@ -1,7 +1,11 @@
 # core-containers Specification
 
 ## Purpose
-TBD - created by archiving change lesson-m03-03-core-containers. Update Purpose after archive.
+Generational handle storage in the `core` layer. A handle pool keeps items densely packed for
+iteration while handing out caller-typed handles that detect stale and forged references
+rather than dangling. Covers the handle's generation semantics, dense iteration, ownership of
+its fixed-capacity storage, and the layering the package must respect.
+
 ## Requirements
 ### Requirement: Generational handle pool
 The engine core layer SHALL provide a generational handle pool container that stores items of a caller-chosen type at fixed capacity, issues opaque handles rather than pointers, and detects handle staleness via per-slot generation counters. Every operation taking a handle SHALL reject invalid handles — zero, stale, retired, out-of-range, or arbitrary garbage — by returning an error value, never by panicking or exhibiting undefined behavior.

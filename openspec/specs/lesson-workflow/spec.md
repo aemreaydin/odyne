@@ -1,7 +1,12 @@
 # lesson-workflow Specification
 
 ## Purpose
-TBD - created by archiving change add-tutor-skill. Update Purpose after archive.
+The lifecycle of a lesson as an OpenSpec change under the `lesson` schema. Covers the
+artifact chain, the `[tutor]`/`[you]` ownership tags and the hard-stop they impose during
+apply, the rule that a learner designs the interface before tests exist, the requirement that
+lesson spec deltas describe the engine capability rather than the lesson, and the archive
+ritual that persists the explanation and merges the deltas.
+
 ## Requirements
 ### Requirement: One lesson, one change
 Each lesson SHALL run as exactly one OpenSpec change using the project-local `lesson` schema, with lesson-shaped artifacts: `lesson.md` (explanation with citations), `design.md` (learner API sketch + tutor critique), `specs/` (requirements for the engine capability being built), and `tasks.md` (ownership-tagged checklist).

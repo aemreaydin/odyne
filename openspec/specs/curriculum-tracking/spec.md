@@ -1,7 +1,12 @@
 # curriculum-tracking Specification
 
 ## Purpose
-TBD - created by archiving change add-tutor-skill. Update Purpose after archive.
+The progress map. `curriculum.yaml` is the single source of truth for where the learner is:
+module DAG, lesson status lifecycle (`locked → available → active → done`), the
+at-most-one-active-lesson rule, and the pointer to the active change. Also defines the
+resume procedure — position is reconstructed from files alone, never from chat history — and
+the shape of a progress report.
+
 ## Requirements
 ### Requirement: Progress map structure
 `curriculum/curriculum.yaml` SHALL be the single source of truth for curriculum position. It SHALL define modules (id, title, phase, prerequisite module ids) and their lessons (id, title, type ∈ {concept, kata, build, design, milestone}, status), plus a pointer to the active lesson's OpenSpec change name when one is in flight.

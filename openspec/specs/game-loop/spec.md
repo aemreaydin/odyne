@@ -5,6 +5,7 @@ The engine-owned frame loop. It owns platform initialization, one window, the fr
 the pacer, the frame limiter and teardown, and drives the application through ordered callbacks.
 Lives at the top engine layer (`game`), so pumping the platform and calling application code are
 both downward calls and the layering law is untouched.
+
 ## Requirements
 ### Requirement: Engine-owned frame loop
 

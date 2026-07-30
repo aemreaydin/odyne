@@ -1,7 +1,13 @@
 # platform-input Specification
 
 ## Purpose
-TBD - created by syncing change lesson-m10-02-input. Update Purpose after archive.
+Keyboard and mouse input, per window, as a frame-coherent snapshot. Input is a portable
+currency — physical keys, layout-independent — captured with transition counts so a press and
+release inside one frame is still observable. Covers key repeat, mouse position, buttons and
+wheel, drags outside the client area, focus observability and the silent clear on focus loss,
+per-window routing, and the rule that modifier and system keys are observed but never
+consumed.
+
 ## Requirements
 
 ### Requirement: Portable input currency

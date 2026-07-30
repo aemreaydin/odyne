@@ -5,6 +5,7 @@ Real-time measurement and fixed-step pacing for the frame loop: a monotonic fram
 a fixed-capacity frame-time history, a deadline waiter, and the fixed-timestep pacer that turns
 elapsed real time into whole simulation steps. Lives in the `core` layer and depends on no
 platform facility, so it is usable without a window.
+
 ## Requirements
 ### Requirement: Monotonic frame timing
 

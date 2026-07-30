@@ -1,7 +1,11 @@
 # core-memory Specification
 
 ## Purpose
-TBD - created by archiving change lesson-m02-04-core-memory. Update Purpose after archive.
+Fixed-backing allocators in the `core` layer: an arena that bump-allocates and frees only all
+at once, a pool that hands out fixed-size blocks through an intrusive free list, and a logging
+wrapper that narrates any allocator's traffic. All conform to Odin's `mem.Allocator` contract,
+and none owns its backing buffer — the caller's storage must outlive the allocator.
+
 ## Requirements
 ### Requirement: Arena allocator
 The engine core layer SHALL provide an arena (bump) allocator that conforms to the Odin `Allocator` interface, operates over a caller-provided fixed backing buffer it does not own, allocates by advancing a single offset, and reclaims all outstanding allocations at once by reset. It SHALL NOT free individual allocations.
