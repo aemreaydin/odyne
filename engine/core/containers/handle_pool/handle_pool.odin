@@ -3,8 +3,11 @@ package handle_pool
 import "base:intrinsics"
 import "core:mem"
 
+// Freelist terminator: no next free slot.
 SENTINEL :: max(u32)
 
+// Slot index in the low 32 bits, generation in the high 32. Generations start at 1, so a
+// zero handle never validates.
 Handle :: distinct u64
 
 Error :: enum {
@@ -13,26 +16,27 @@ Error :: enum {
 	Invalid_Handle, // zero, stale, retired, or out-of-range
 }
 
-// Slot — sparse entry: which lifetime (gen), where the item lives (dense_idx), and the
-// freelist link (next).
+// Sparse entry: which lifetime, where the item currently lives, and the freelist link.
 Slot :: struct {
-	gen:       u32, // current generation; starts at 1; wraps-to-0 ⇒ slot retired
-	dense_idx: u32, // position in items[] while live
-	next:      u32, // next free slot in FIFO order, SENTINEL if none
+	gen:       u32, // starts at 1; generation 0 means retired, and the slot is never reused
+	dense_idx: u32,
+	next:      u32, // next free slot, or SENTINEL
 }
 
 Handle_Pool :: struct($T: typeid, $HT: typeid) where size_of(HT) == size_of(u64),
 	intrinsics.type_is_unsigned(HT),
 	intrinsics.type_has_field(T, "handle"),
 	intrinsics.type_field_type(T, "handle") == HT {
-	items:     []T, // dense storage; [0:count) live — owned via `allocator`; items know their handles
+	items:     []T, // live items are `items[:count]`; owned via `allocator`
 	slots:     []Slot,
 	count:     u32,
-	free_head: u32, // dequeue end (oldest freed slot) — FIFO per BITSQUID
-	free_tail: u32, // enqueue end
+	free_head: u32,
+	free_tail: u32,
 	allocator: mem.Allocator,
 }
 
+// Prepares `p` to hold up to `capacity` live items, which it owns until `destroy`. Panics
+// unless `0 < capacity < SENTINEL`.
 init :: proc(p: ^Handle_Pool($T, $HT), capacity: int, allocator := context.allocator) {
 	assert(
 		capacity > 0 && capacity < int(SENTINEL),
@@ -56,17 +60,17 @@ init :: proc(p: ^Handle_Pool($T, $HT), capacity: int, allocator := context.alloc
 	p.allocator = allocator
 }
 
-// destroy releases the pool's arrays via the allocator stored at init. The pool is unusable
-// afterwards; every outstanding handle is dead.
+// Releases the pool's storage through the allocator given at `init`. Every outstanding
+// handle is dead afterwards.
 destroy :: proc(p: ^Handle_Pool($T, $HT)) {
 	delete(p.items, p.allocator)
 	delete(p.slots, p.allocator)
 }
 
-// clear empties the pool without releasing memory: every LIVE slot's generation is bumped
-// (retire-on-wrap) via each live item's embedded handle, the freelist is rebuilt over all
-// non-retired slots, and count returns to 0. Every previously issued handle is stale
-// afterwards. Retired slots (gen 0) stay retired — a fully retired pool remains .Full.
+/*
+Empties the pool without releasing its storage. Every handle issued before the call is stale
+afterwards. Retired slots stay retired, so a fully retired pool still reports `.Full`.
+*/
 clear :: proc(p: ^Handle_Pool($T, $HT)) {
 	for i in 0 ..< p.count {
 		item := p.items[i]
@@ -87,9 +91,11 @@ clear :: proc(p: ^Handle_Pool($T, $HT)) {
 	p.count = 0
 }
 
-// add stores `item` and returns its handle (packed slot+generation, transmuted to HT). The
-// stored copy's `handle` field is OVERWRITTEN with the issued handle — the caller's value
-// there is ignored. Freelist empty (all slots live or retired) → (zero HT, .Full).
+/*
+Stores `item` and returns its handle. The stored copy's `handle` field is overwritten with
+the issued handle, so whatever the caller put there is ignored. Returns `.Full` when no slot
+is available.
+*/
 add :: proc(p: ^Handle_Pool($T, $HT), item: T) -> (h: HT, err: Error) {
 	if p.free_head == SENTINEL {
 		return 0, .Full
@@ -111,10 +117,11 @@ is_empty :: proc(p: ^Handle_Pool($T, $HT)) -> bool {
 	return p.count == 0
 }
 
-// remove deletes the item `h` refers to: the last dense item is swapped into the gap and its
-// slot is patched via the moved item's embedded handle; the freed slot's generation is bumped
-// (wrap-to-0 ⇒ retired, else FIFO-enqueued). Invalid/stale/zero/garbage handle →
-// .Invalid_Handle (never panics).
+/*
+Removes the item `h` refers to. Remaining items may be reordered, invalidating pointers from
+`get_ptr` and slices from `slice`. An invalid handle returns `.Invalid_Handle` rather than
+panicking.
+*/
 remove :: proc(p: ^Handle_Pool($T, $HT), h: HT) -> Error {
 	hole_idx, ok := resolve_dense_idx(p, h)
 	if !ok {
@@ -139,8 +146,7 @@ remove :: proc(p: ^Handle_Pool($T, $HT), h: HT) -> Error {
 	return .None
 }
 
-// get returns a COPY of the item `h` refers to (embedded handle included), or
-// (T{}, .Invalid_Handle).
+// Returns a copy of the item `h` refers to, or `(T{}, .Invalid_Handle)`.
 get :: proc(p: ^Handle_Pool($T, $HT), h: HT) -> (item: T, err: Error) {
 	dense_idx, ok := resolve_dense_idx(p, h)
 	if !ok {
@@ -151,12 +157,14 @@ get :: proc(p: ^Handle_Pool($T, $HT), h: HT) -> (item: T, err: Error) {
 	return
 }
 
-// get_ptr returns a pointer to the live item — a LOAN, valid only until the next
-// remove/clear/destroy. Invalid handle → (nil, .Invalid_Handle).
-//
-// The item's `handle` field is POOL-OWNED: never write it through the loan. remove's
-// swap patch and clear's sweep trust it to locate the owning slot — a scribbled field
-// mispatches another live slot (wrong-item resolution) or indexes out of range.
+/*
+Returns a pointer to the live item, or `(nil, .Invalid_Handle)`. The pointer is a loan:
+`remove`, `clear`, and `destroy` may invalidate it.
+
+The item's `handle` field is pool-owned — never write it through the loan. `remove` and
+`clear` trust it to locate the owning slot, so a scribbled field resolves to the wrong item
+or indexes out of range.
+*/
 get_ptr :: proc(p: ^Handle_Pool($T, $HT), h: HT) -> (item: ^T, err: Error) {
 	dense_idx, ok := resolve_dense_idx(p, h)
 	if !ok {
@@ -167,17 +175,16 @@ get_ptr :: proc(p: ^Handle_Pool($T, $HT), h: HT) -> (item: ^T, err: Error) {
 	return
 }
 
-// has reports whether `h` currently resolves (in range, non-zero generation, generation
-// matches, and the dense item embeds this exact handle). Garbage- and forgery-safe.
+// Whether `h` currently resolves. Safe against garbage and forged handles.
 has :: proc(p: ^Handle_Pool($T, $HT), h: HT) -> bool {
 	_, ok := resolve_dense_idx(p, h)
 	return ok
 }
 
-// slice returns the live items, items[0:count] — dense iteration is a plain slice walk over
-// self-identifying items. Order is unspecified beyond the swap-with-last contract; the slice
-// is invalidated by remove/clear/destroy — to remove while iterating, collect handles during
-// the walk and remove after.
+/*
+Returns the live items. Order is unspecified, and `remove`, `clear`, and `destroy` invalidate
+the slice — to remove while iterating, collect handles during the walk and remove afterwards.
+*/
 slice :: proc(p: ^Handle_Pool($T, $HT)) -> []T {
 	return p.items[:p.count]
 }
@@ -191,9 +198,8 @@ increment_gen :: proc(slot: ^Slot) -> (overflow: bool) {
 	return
 }
 
-// enqueue_free_slot appends the slot to the freelist's tail (FIFO). The caller guarantees
-// the slot is neither retired nor already enqueued — remove and clear both share this so
-// their freelist policies cannot drift apart.
+// Appends a slot to the freelist tail. The caller guarantees it is neither retired nor
+// already enqueued; `remove` and `clear` share this so their policies cannot drift apart.
 @(private = "file")
 enqueue_free_slot :: proc(p: ^Handle_Pool($T, $HT), slot_idx: u32) {
 	p.slots[slot_idx].next = SENTINEL

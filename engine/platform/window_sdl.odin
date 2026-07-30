@@ -14,6 +14,8 @@ _Native_Window :: struct {
 @(private)
 g_initialized: bool
 
+// Starts the platform backend. Must be called before any window exists, and paired with
+// `shutdown`. Calling it twice reports `.Init_Failed` rather than reinitializing.
 init :: proc(allocator := context.allocator) -> Window_Error {
 	if g_initialized {
 		return .Init_Failed
@@ -27,6 +29,8 @@ init :: proc(allocator := context.allocator) -> Window_Error {
 	return .None
 }
 
+// Destroys every remaining window and shuts the backend down. Safe to call when
+// uninitialized. Every outstanding window handle is dead afterwards.
 shutdown :: proc() {
 	if !g_initialized {
 		return
@@ -37,6 +41,8 @@ shutdown :: proc() {
 	g_initialized = false
 }
 
+// Creates a window from `desc`, filling zero fields with defaults. Fails with
+// `.Create_Failed` once MAX_WINDOWS are live.
 create_window :: proc(desc: Window_Desc) -> (h: Window_Handle, err: Window_Error) {
 	window_desc := get_desc_or_default(desc)
 	window_state := Window_State {
@@ -74,6 +80,7 @@ create_window :: proc(desc: Window_Desc) -> (h: Window_Handle, err: Window_Error
 	return h, .None
 }
 
+// Destroys the window and retires `h`. Queued events for it are dropped by the next pump.
 destroy_window :: proc(h: Window_Handle) -> Window_Error {
 	window_state, ok := get_state(h)
 	if !ok {
@@ -85,6 +92,8 @@ destroy_window :: proc(h: Window_Handle) -> Window_Error {
 	return .None
 }
 
+// Drains the OS event queue into per-window state and retires the previous frame's input
+// edges. Call exactly once per frame, before reading any input.
 poll_events :: proc() {
 	for &window_state in handle_pool.slice(&g_window_pool) {
 		retire_input(&window_state.input)
@@ -120,6 +129,7 @@ poll_events :: proc() {
 	}
 }
 
+// Sets the window title.
 set_window_title :: proc(h: Window_Handle, title: string) -> Window_Error {
 	window_state, ok := get_state(h)
 	if !ok {
@@ -131,6 +141,8 @@ set_window_title :: proc(h: Window_Handle, title: string) -> Window_Error {
 	return .None
 }
 
+// The drawable size in pixels, which differs from `client_size` on high-DPI displays. This
+// is the size a swapchain must match. An invalid handle reports `{0, 0}`.
 framebuffer_size :: proc(h: Window_Handle) -> [2]i32 {
 	window_state, ok := get_state(h)
 	if !ok {

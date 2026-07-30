@@ -3,29 +3,29 @@ package memory
 import "core:fmt"
 import "core:mem"
 
-// Logging_Allocator wraps another allocator and prints every operation it performs — a
-// drop-in debug lens over any allocator (heap, arena, pool):
-//
-//	log: memory.Logging_Allocator
-//	memory.logging_allocator_init(&log, context.allocator, "frame")
-//	context.allocator = memory.logging_allocator(&log)
-//	// ... every new/make/free now prints mode, size, alignment, caller, result ...
-//
-// It owns no memory and keeps no allocation records of its own; it observes each call and
-// forwards it to `backing`. (Contrast the Tracking_Allocator, which records live allocations
-// to detect leaks — this one just narrates, in real time, with the caller location.)
+/*
+Wraps another allocator and prints every operation it performs. It owns no memory and keeps
+no records; it narrates each call and forwards it to `backing`. To detect leaks rather than
+watch traffic, use `mem.Tracking_Allocator` instead.
+
+Example:
+
+	log: memory.Logging_Allocator
+	memory.logging_allocator_init(&log, context.allocator, "frame")
+	context.allocator = memory.logging_allocator(&log)
+*/
 Logging_Allocator :: struct {
 	backing: mem.Allocator, // the real allocator every call is forwarded to
-	label:   string, // printed on each line so you can tell multiple loggers apart
+	label:   string, // printed on each line, to tell multiple loggers apart
 }
 
-// logging_allocator_init wires the logger to forward to `backing`.
+// Wires the logger to forward to `backing`.
 logging_allocator_init :: proc(l: ^Logging_Allocator, backing: mem.Allocator, label := "mem") {
 	l.backing = backing
 	l.label = label
 }
 
-// logging_allocator returns the Allocator value to assign to context.allocator.
+// The allocator value to assign to `context.allocator`.
 logging_allocator :: proc(l: ^Logging_Allocator) -> mem.Allocator {
 	return mem.Allocator{procedure = logging_allocator_proc, data = l}
 }

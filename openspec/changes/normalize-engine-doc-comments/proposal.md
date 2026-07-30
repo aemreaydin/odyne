@@ -23,10 +23,13 @@ convention exists to prevent. Leaving it gives the tutor a bad example to patter
 ## What Changes
 
 - **Strip lesson residue.** Teaching prose, cite-keys, lesson ids, and measurement numbers
-  move out of source. Architectural rationale relocates to the owning spec —
-  `pacer.odin`'s division-of-labour header to `core-timing`, `app.odin`'s layering
-  justification to `game-loop` — rather than being deleted, since both are real design
-  decisions that the specs should already carry.
+  move out of source. Most of what those headers assert is **already in the specs** —
+  `core-timing` already requires the pacer to consult no clock and to derive simulated time
+  as a product rather than a sum; `game-loop`'s Purpose already carries the layering
+  argument. So the headers are largely duplication and are simply deleted. Only two claims
+  lack a home and are relocated rather than dropped: why the default rate is 50 Hz (to
+  `core-timing`) and the commitment that the timing components stay usable without the
+  engine-owned loop (to `game-loop`).
 - **Convert recipe to contract.** Comments that narrate the body are rewritten to state
   caller-visible consequence, or removed where the signature already says it.
 - **Document `engine/platform`.** Non-trivial declarations get one-line contracts:

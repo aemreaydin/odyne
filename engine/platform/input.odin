@@ -1,5 +1,6 @@
 package platform
 
+// Physical key identity, layout-independent.
 Key :: enum u8 {
 	Unknown = 0,
 	A,
@@ -77,19 +78,27 @@ Mouse_Button :: enum u8 {
 	X2,
 }
 
+// One window's input for the current frame. Edges are retired by the event pump, so they
+// read true for exactly one frame.
 Input_State :: struct {
 	keys:         [Key]Button_State,
 	buttons:      [Mouse_Button]Button_State,
 	buttons_down: bit_set[Mouse_Button],
 	cursor:       [2]i32,
-	wheel:        f32,
+	wheel:        f32, // accumulated this frame; reset by the pump
 }
 
+/*
+A button across one frame. Counting transitions rather than sampling state is what makes a
+press-and-release within a single frame observable instead of lost.
+*/
 Button_State :: struct {
-	half_transitions: u8,
-	ended_down:       bool,
+	half_transitions: u8, // saturates rather than wrapping
+	ended_down:       bool, // state at the end of the frame
 }
 
+// Whether `k` is held at the end of the frame — level state, safe to read from a simulation
+// step. An invalid handle reports false.
 key_down :: proc(h: Window_Handle, k: Key) -> bool {
 	window_state, ok := get_state(h)
 	if !ok {
@@ -98,6 +107,8 @@ key_down :: proc(h: Window_Handle, k: Key) -> bool {
 	return window_state.input.keys[k].ended_down
 }
 
+// Whether `k` went down this frame. An edge: true for exactly one frame, so it must be read
+// once per frame and latched, never from a simulation step that may run zero or many times.
 key_pressed :: proc(h: Window_Handle, k: Key) -> bool {
 	window_state, ok := get_state(h)
 	if !ok {
@@ -106,6 +117,7 @@ key_pressed :: proc(h: Window_Handle, k: Key) -> bool {
 	return was_pressed(window_state.input.keys[k])
 }
 
+// Whether `k` went up this frame. An edge; see `key_pressed`.
 key_released :: proc(h: Window_Handle, k: Key) -> bool {
 	window_state, ok := get_state(h)
 	if !ok {
@@ -114,6 +126,7 @@ key_released :: proc(h: Window_Handle, k: Key) -> bool {
 	return was_released(window_state.input.keys[k])
 }
 
+// Whether `b` is held at the end of the frame — level state. An invalid handle reports false.
 mouse_down :: proc(h: Window_Handle, b: Mouse_Button) -> bool {
 	window_state, ok := get_state(h)
 	if !ok {
@@ -122,6 +135,7 @@ mouse_down :: proc(h: Window_Handle, b: Mouse_Button) -> bool {
 	return window_state.input.buttons[b].ended_down
 }
 
+// Whether `button` went down this frame. An edge; see `key_pressed`.
 mouse_pressed :: proc(h: Window_Handle, button: Mouse_Button) -> bool {
 	window_state, ok := get_state(h)
 	if !ok {
@@ -130,6 +144,7 @@ mouse_pressed :: proc(h: Window_Handle, button: Mouse_Button) -> bool {
 	return was_pressed(window_state.input.buttons[button])
 }
 
+// Whether `button` went up this frame. An edge; see `key_pressed`.
 mouse_released :: proc(h: Window_Handle, button: Mouse_Button) -> bool {
 	window_state, ok := get_state(h)
 	if !ok {
@@ -138,6 +153,7 @@ mouse_released :: proc(h: Window_Handle, button: Mouse_Button) -> bool {
 	return was_released(window_state.input.buttons[button])
 }
 
+// Cursor position in client-area pixels. An invalid handle reports `{0, 0}`.
 mouse_position :: proc(h: Window_Handle) -> [2]i32 {
 	window_state, ok := get_state(h)
 	if !ok {
@@ -146,6 +162,7 @@ mouse_position :: proc(h: Window_Handle) -> [2]i32 {
 	return window_state.input.cursor
 }
 
+// Wheel movement accumulated this frame, reset by the pump. An invalid handle reports 0.
 mouse_wheel :: proc(h: Window_Handle) -> f32 {
 	window_state, ok := get_state(h)
 	if !ok {
@@ -154,6 +171,8 @@ mouse_wheel :: proc(h: Window_Handle) -> f32 {
 	return window_state.input.wheel
 }
 
+// Two transitions means the button both went down and came back up within the frame, which
+// still counts as a press.
 @(private)
 was_pressed :: proc(b: Button_State) -> bool {
 	return b.half_transitions >= 2 || (b.half_transitions == 1 && b.ended_down)
@@ -196,6 +215,8 @@ record_wheel :: proc(input: ^Input_State, delta: f32) {
 	input.wheel += delta
 }
 
+// Clears the per-frame edges and wheel while leaving held state intact. Called once per
+// pump, which is what bounds an edge to a single frame.
 @(private)
 retire_input :: proc(input: ^Input_State) {
 	for &button in input.buttons {
@@ -207,6 +228,8 @@ retire_input :: proc(input: ^Input_State) {
 	input.wheel = 0
 }
 
+// Drops all input including held state — used on focus loss, so keys held when the window
+// lost focus do not read as still held when it returns.
 @(private)
 clear_input_states :: proc(window_state: ^Window_State) {
 	clear_buttons(window_state)

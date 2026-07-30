@@ -2,28 +2,21 @@
 
 ## ADDED Requirements
 
-### Requirement: Clock and pacer are separately responsible
-Measuring real time and deciding how much simulation it buys SHALL be separate
-responsibilities. The frame clock SHALL be the only component that reads a platform clock;
-the pacer SHALL read no clock, make no syscall, and allocate nothing, operating purely as
-integer arithmetic over durations handed to it [GAFFER-TIMESTEP].
-
-This separation is what makes pacing testable with fabricated deltas, and it is why the
-pacer carries no platform dependency.
-
-#### Scenario: Pacer exercised without a platform clock
-- **WHEN** the pacer is driven entirely by fabricated frame deltas in a test
-- **THEN** it produces the same step counts and interpolation phase as it would in a running frame loop, with no platform clock involved
-
-#### Scenario: Pacer performs no I/O
-- **WHEN** the pacer advances a frame
-- **THEN** it makes no syscall and performs no allocation
-
-### Requirement: The fixed step is chosen to divide evenly into nanoseconds
+### Requirement: The default fixed step divides evenly into nanoseconds
 The default fixed timestep SHALL be a rate whose period is a whole number of nanoseconds,
-so the step carries no truncation residue. 50 Hz (20,000,000 ns) satisfies this; 60 Hz does
-not, truncating to 16,666,666 ns.
+so that the step carries no truncation residue. 50 Hz satisfies this at exactly 20,000,000 ns;
+60 Hz does not, truncating to 16,666,666 ns — 0.67 ns short of a true 60 Hz step. 64 Hz
+(15,625,000 ns) is the other exact option in this range.
 
-#### Scenario: Default step is exact
+This is a property of the constant itself, independent of the loop that consumes it. The
+existing `game-loop` requirement "Zero-value configuration applies defaults" asserts that a
+default step is exactly representable; this requirement is what makes that true and records
+why the rate was chosen.
+
+#### Scenario: The default step is exact
 - **WHEN** the default fixed timestep is expressed in nanoseconds
-- **THEN** it is an exact whole number, with no remainder discarded by integer division
+- **THEN** it is a whole number, with no remainder discarded by integer division
+
+#### Scenario: Derived simulated time is unaffected by rate choice
+- **WHEN** simulated time is computed from a step count and the default step
+- **THEN** the result is exact, because simulated time is a product rather than a sum of the step

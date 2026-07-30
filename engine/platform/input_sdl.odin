@@ -2,25 +2,8 @@ package platform
 
 import sdl "vendor:sdl3"
 
-// SDL3 input mechanism: translate one SDL event into the portable Input_State recorders.
-//
-// KEYS ARE POSITIONAL
-//
-// The table below keys off `SDL_Scancode`, never `SDL_Keycode`. A scancode names the
-// PHYSICAL key — USB HID usage page 0x07 — so `Key.W` is the key above `Key.S` on QWERTY,
-// AZERTY and Dvorak alike, and WASD keeps its shape. A keycode is the character the
-// current layout produces from that key, which is the right currency for text entry and
-// the wrong one for movement. This is the same contract the Win32 backend reached through
-// scan codes and the Cocoa backend through `kVK` hardware codes.
-//
-// UNMAPPED KEYS ARE DROPPED
-//
-// SDL has ~240 scancodes; `Key` has 69. Anything absent maps to `.Unknown` and is
-// discarded before it can record a transition, so a media key or an IME key cannot
-// disturb frame state.
-
-// handle_input_event routes one input event to its window's state. Events whose window
-// is gone — the queue can outlive a destroy by a frame — are dropped silently.
+// Routes one input event to its window's state. Events for a destroyed window are dropped
+// silently, because the queue can outlive a destroy by a frame.
 @(private)
 handle_input_event :: proc(ev: sdl.Event) {
 	#partial switch ev.type {
@@ -79,8 +62,14 @@ button_from_sdl :: proc "contextless" (button: u8) -> (Mouse_Button, bool) {
 	return {}, false
 }
 
-// key_from_scancode maps a physical SDL scancode to the platform key set.
-// Anything outside the set → .Unknown, which callers drop.
+/*
+Maps a physical SDL scancode to the platform key set. Scancodes name the physical key, so
+`Key.W` is the key above `Key.S` on QWERTY, AZERTY and Dvorak alike — a keycode would give
+the character the layout produces, which is right for text entry and wrong for movement.
+
+SDL has far more scancodes than `Key` covers; anything unmapped returns `.Unknown`, which
+callers drop before it can record a transition.
+*/
 @(private)
 key_from_scancode :: proc "contextless" (sc: sdl.Scancode) -> Key {
 	#partial switch sc {
