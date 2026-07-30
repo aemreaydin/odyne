@@ -5,9 +5,7 @@ Real-time measurement and fixed-step pacing for the frame loop: a monotonic fram
 a fixed-capacity frame-time history, a deadline waiter, and the fixed-timestep pacer that turns
 elapsed real time into whole simulation steps. Lives in the `core` layer and depends on no
 platform facility, so it is usable without a window.
-
 ## Requirements
-
 ### Requirement: Monotonic frame timing
 
 The engine SHALL provide a frame clock whose timeline is monotonic and whose total elapsed time is derived by subtracting a stored origin from the current timestamp, never accumulated from per-frame deltas. The clock SHALL accept the timestamp as a caller-supplied parameter so that the entire state machine is drivable without reading a real clock. Absolute time SHALL be held as integer nanoseconds; floating-point representations SHALL appear only at query boundaries.
@@ -120,3 +118,23 @@ The pacer SHALL report a phase between the last completed step and the next, as 
 
 - **WHEN** the pacer is advanced by a zero delta
 - **THEN** the count is zero, and the phase and simulated time are unchanged from before the advance
+
+### Requirement: The default fixed step divides evenly into nanoseconds
+The default fixed timestep SHALL be a rate whose period is a whole number of nanoseconds,
+so that the step carries no truncation residue. 50 Hz satisfies this at exactly 20,000,000 ns;
+60 Hz does not, truncating to 16,666,666 ns — 0.67 ns short of a true 60 Hz step. 64 Hz
+(15,625,000 ns) is the other exact option in this range.
+
+This is a property of the constant itself, independent of the loop that consumes it. The
+existing `game-loop` requirement "Zero-value configuration applies defaults" asserts that a
+default step is exactly representable; this requirement is what makes that true and records
+why the rate was chosen.
+
+#### Scenario: The default step is exact
+- **WHEN** the default fixed timestep is expressed in nanoseconds
+- **THEN** it is a whole number, with no remainder discarded by integer division
+
+#### Scenario: Derived simulated time is unaffected by rate choice
+- **WHEN** simulated time is computed from a step count and the default step
+- **THEN** the result is exact, because simulated time is a product rather than a sum of the step
+

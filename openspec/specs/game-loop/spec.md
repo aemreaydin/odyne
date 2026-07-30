@@ -5,9 +5,7 @@ The engine-owned frame loop. It owns platform initialization, one window, the fr
 the pacer, the frame limiter and teardown, and drives the application through ordered callbacks.
 Lives at the top engine layer (`game`), so pumping the platform and calling application code are
 both downward calls and the layering law is untouched.
-
 ## Requirements
-
 ### Requirement: Engine-owned frame loop
 
 The engine SHALL provide a single entry point that owns the application's frame loop: it initializes the platform, creates one window from the supplied configuration, drives frames until the window reports a close request, and tears the window and platform down before returning — including on every error path. The application SHALL supply its per-frame work as callbacks rather than as a loop of its own. Every callback SHALL be optional.
@@ -112,3 +110,23 @@ While the application marks the loop paused, the engine SHALL feed no time to th
 
 - **WHEN** the application unpauses after a long pause
 - **THEN** the first frame after resuming advances the simulation by no more than one step's worth of time
+
+### Requirement: The engine-owned loop is a convenience, not the only path
+The timing components the loop is built from — the frame clock, the pacer, the frame-time
+history, and the deadline waiter — SHALL remain fully usable without the engine-owned loop,
+depending on nothing in the `game` layer. A tool, an asset cooker, or a test harness SHALL be
+able to write its own iteration over them.
+
+The engine-owned loop exists because inverting control is the only shape available on
+platforms where an application-owned infinite loop is not permitted to exist, and it is the
+shape the platform layer's own backend offers [SDL SDL_AppIterate], [SOKOL]. It is not a
+constraint on callers who can own their loop.
+
+#### Scenario: Timing components driven without the loop
+- **WHEN** a caller drives the frame clock and pacer directly, never entering the engine-owned loop
+- **THEN** both function fully, and neither requires any facility from the `game` layer
+
+#### Scenario: Loop placement keeps dependencies downward
+- **WHEN** the frame loop's imports are inspected
+- **THEN** every dependency points downward along `core → platform → render → game`, with no upward call into application code routed through a lower layer
+
